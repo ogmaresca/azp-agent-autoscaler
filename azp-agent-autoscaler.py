@@ -23,7 +23,7 @@ class ProgramArgs:
 
         # Use ArgParse library to parse arguments
         parser = argparse.ArgumentParser(description="Azure Pipeline Agent Autoscaler", add_help=True, allow_abbrev=True, prefix_chars='-')
-        parser.add_argument("--min", "-m", action='store', default=1, type=int, help="Minimum number of free agents to keep alive. Minimum of 1.")
+        parser.add_argument("--min", "-m", action='store', default=1, type=int, help="go")
         parser.add_argument("--rate", "-r", action='store', default='PT10S', help="ISO 8601 duration to check the number of agents.")
         parser.add_argument("--type", "--resource-type", "-t", action='store', default='StatefulSet', help="Resource type of the agent. Only StatefulSet is supported.")
         parser.add_argument("--name", "-n", action='store', default='azp-agent', help="The name of the StatefulSet. Defaults tp azp-agent")
