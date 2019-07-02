@@ -26,7 +26,7 @@ type Client struct {
 
 // MakeClient creates a new Azure Devops client
 func MakeClient(baseURL string, token string) Client {
-	if !strings.HasSuffix(baseUrl, "") {
+	if !strings.HasSuffix(baseURL, "") {
 		baseURL = strings.TrimSuffix(baseURL, "/")
 	}
 	return Client{
@@ -59,7 +59,7 @@ func (c *Client) executeGETRequest(endpoint string, response interface{}) error 
 		return fmt.Errorf("Error - received HTTP status code %d when calling call to %s", httpResponse.StatusCode, endpoint)
 	}
 
-	err = json.NewDecoder(httpResponse.Body).Decode(&response)
+	err = json.NewDecoder(httpResponse.Body).Decode(response)
 	if err != nil {
 		return fmt.Errorf("Error - could not parse JSON response from %s: %s", endpoint, err.Error())
 	}
@@ -81,7 +81,7 @@ func (c *Client) ListPools() ([]PoolDetails, error) {
 // ListPoolAgents retrieves all of the agents in a pool
 func (c *Client) ListPoolAgents(poolID int) ([]AgentDetails, error) {
 	response := new(Pool)
-	endpoint := fmt.Sprintf(getPoolAgentsEndpoint, poolId)
+	endpoint := fmt.Sprintf(getPoolAgentsEndpoint, poolID)
 	err := c.executeGETRequest(endpoint, response)
 	if err != nil {
 		return nil, err
@@ -91,15 +91,13 @@ func (c *Client) ListPoolAgents(poolID int) ([]AgentDetails, error) {
 }
 
 // GetPoolAgent retrieves a single agent in a pool
-func (c *Client) GetPoolAgent(poolID int, agentID int) (AgentDetails, error) {
+func (c *Client) GetPoolAgent(poolID int, agentID int) (*AgentDetails, error) {
 	response := new(AgentDetails)
-	endpoint := fmt.Sprintf(getAgentEndpoint, poolId, agentId)
+	endpoint := fmt.Sprintf(getAgentEndpoint, poolID, agentID)
 	err := c.executeGETRequest(endpoint, response)
 	if err != nil {
 		return nil, err
 	}
 
-	println(fmt.Sprintf("Response.Value length: %d", len(response.Value)))
-
-	return response.Value, nil
+	return response, nil
 }

@@ -7,9 +7,11 @@ import (
 	"strconv"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
+	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8s "k8s.io/client-go/kubernetes"
+	k8srest "k8s.io/client-go/rest"
+	k8sclientcmd "k8s.io/client-go/tools/clientcmd"
 
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/azuredevops"
 )
@@ -73,19 +75,19 @@ func main() {
 	if err != nil {
 		panic("Error initializing Kubernetes config: " + err.Error())
 	}*/
-	k8sConfig, err := rest.InClusterConfig()
+	k8sConfig, err := k8srest.InClusterConfig()
 	if err != nil {
 		kubeconfigEnv := os.Getenv("KUBECONFIG")
-		k8sConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfigEnv)
+		k8sConfig, err = k8sclientcmd.BuildConfigFromFlags("", kubeconfigEnv)
 		if err != nil {
-			k8sConfig, err = clientcmd.BuildConfigFromFlags("", fmt.Sprintf("%s/.kube/config", homepath()))
+			k8sConfig, err = k8sclientcmd.BuildConfigFromFlags("", fmt.Sprintf("%s/.kube/config", homepath()))
 			if err != nil {
 				panic(fmt.Sprintf("Error initializing Kubernetes config: %s", err.Error()))
 			}
 		}
 	}
 
-	k8sClient, err := kubernetes.NewForConfig(k8sConfig)
+	k8sClient, err := k8s.NewForConfig(k8sConfig)
 	if err != nil || k8sClient == nil {
 		panic(fmt.Sprintf("Error initializing Kubernetes config: %s", err.Error()))
 	}
@@ -98,11 +100,31 @@ func main() {
 		panic("Error - did not find any agent pools")
 	}
 
+	deployment, err := k8sClient.AppsV1().StatefulSets(*resourceNamespace).Get(*resourceName, metav1.GetOptions{})
+	if err != nil {
+		panic(fmt.Sprintf("Error retrieving statefulset/%s in namespace %s: %s", *resourceName, *resourceNamespace, err.Error()))
+	} else if deployment == nil {
+		panic(fmt.Sprintf("Could not find statefulset/%s in namespace %s", *resourceName, *resourceNamespace))
+	}
+
+	hpa, err := k8sClient.AppsV1().StatefulSets(*resourceNamespace).GetScale(*resourceName, metav1.GetOptions{})
+	if err != nil {
+		panic(fmt.Sprintf("Error checking if statefulset/%s has a HorizontalPodAutoscaler: %s", *resourceName, err.Error()))
+	} else if hpa != nil {
+		panic(fmt.Sprintf("Error: statefulset/%s cannot have a HorizontalPodAutoscaler attached for azp-agent-autoscaler to work.", *resourceName))
+	}
+
 	for {
+		err = autoscale(k8sClient, azdClient, deployment, min, max)
+
 		time.Sleep(rate)
 	}
 
 	println("Exiting azp-agent-autoscaler")
+}
+
+func autoscale(k8sClient *k8s.Clientset, azdClient azuredevops.Client, deployment *appsv1.StatefulSet, min int, max int) error {
+	return nil
 }
 
 func homepath() string {
