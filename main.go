@@ -8,6 +8,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	k8s "k8s.io/client-go/kubernetes"
 	k8srest "k8s.io/client-go/rest"
@@ -15,6 +16,8 @@ import (
 
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/azuredevops"
 )
+
+const poolNameEnvVar = "AZP_POOL"
 
 func main() {
 	// Parse arguments
@@ -29,6 +32,7 @@ func main() {
 
 	flag.Parse()
 
+	// Validate arguments
 	min, err := strconv.Atoi(*minStr)
 	if err != nil {
 		panic(fmt.Sprintf("Error converting min argument to int: %s", err.Error()))
@@ -92,38 +96,90 @@ func main() {
 		panic(fmt.Sprintf("Error initializing Kubernetes config: %s", err.Error()))
 	}
 
-	azdClient := azuredevops.MakeClient(*azpURL, *azpToken)
-	pools, err := azdClient.ListPools()
-	if err != nil {
-		panic(fmt.Sprintf("Error retrieving agent pools: %s", err.Error()))
-	} else if len(pools) == 0 {
-		panic("Error - did not find any agent pools")
-	}
-
-	deployment, err := k8sClient.AppsV1().StatefulSets(*resourceNamespace).Get(*resourceName, metav1.GetOptions{})
+	// Get StatefulSet
+	statefulSets := k8sClient.AppsV1().StatefulSets(*resourceNamespace)
+	deployment, err := statefulSets.Get(*resourceName, metav1.GetOptions{})
 	if err != nil {
 		panic(fmt.Sprintf("Error retrieving statefulset/%s in namespace %s: %s", *resourceName, *resourceNamespace, err.Error()))
 	} else if deployment == nil {
 		panic(fmt.Sprintf("Could not find statefulset/%s in namespace %s", *resourceName, *resourceNamespace))
 	}
 
-	hpa, err := k8sClient.AppsV1().StatefulSets(*resourceNamespace).GetScale(*resourceName, metav1.GetOptions{})
+	// Verify there isn't a HorizontalPodAutoscaler
+	verifyHPAChan := make(chan error)
+	go verifyNoHorizontalPodAutoscaler(verifyHPAChan, k8sClient, deployment)
+	if err = <-verifyHPAChan; err != nil {
+		panic(err.Error())
+	}
+
+	scaleFunc := func(replicas int32) error {
+		scale, err := statefulSets.GetScale(deployment.Name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		scale.Spec.Replicas = replicas
+		scale, err = statefulSets.UpdateScale(deployment.Name, scale)
+		return err
+	}
+
+	// Discover the pool name from the environment variables
+	var agentPoolName *string
+agentPoolNameLoop:
+	for _, container := range deployment.Spec.Template.Spec.Containers {
+		for _, env := range container.Env {
+			if env.Name == poolNameEnvVar {
+				envValue, err := getEnvValue(env)
+				if err != nil {
+					panic(fmt.Sprintf("Error getting Agent Pool - could not retrieve environment variable %s from statefulset/%s: %s", poolNameEnvVar, deployment.Name, err.Error()))
+				}
+				agentPoolName = &envValue
+				break agentPoolNameLoop
+			}
+		}
+	}
+	if agentPoolName == nil {
+		panic(fmt.Sprintf("Could not retrieve environment variable %s from statefulset/%s", poolNameEnvVar, deployment.Name))
+	}
+
+	// Initialize Azure Devops client
+	azdClient := azuredevops.MakeClient(*azpURL, *azpToken)
+	agentPools, err := azdClient.ListPools()
 	if err != nil {
-		panic(fmt.Sprintf("Error checking if statefulset/%s has a HorizontalPodAutoscaler: %s", *resourceName, err.Error()))
-	} else if hpa != nil {
-		panic(fmt.Sprintf("Error: statefulset/%s cannot have a HorizontalPodAutoscaler attached for azp-agent-autoscaler to work.", *resourceName))
+		panic(fmt.Sprintf("Error retrieving agent pools: %s", err.Error()))
+	} else if len(agentPools) == 0 {
+		panic("Error - did not find any agent pools")
+	}
+	var agentPoolID *int
+	for _, agentPool := range agentPools {
+		if agentPool.Name == *agentPoolName {
+			agentPoolID = &agentPool.ID
+		}
+	}
+	if agentPoolID == nil {
+		panic(fmt.Sprintf("Error - could not find an agent pool with name %s", *agentPoolName))
+	}
+	getAgentsFunc := func() ([]azuredevops.AgentDetails, error) {
+		return azdClient.ListPoolAgents(*agentPoolID)
 	}
 
 	for {
-		err = autoscale(k8sClient, azdClient, deployment, min, max)
+		err = autoscale(getAgentsFunc, deployment, scaleFunc, min, max)
+		if err != nil {
+			panic(fmt.Sprintf("Error autoscaling statefulset/%s: %s", deployment.Name, err.Error()))
+		}
 
+		println("End loop")
 		time.Sleep(rate)
 	}
 
 	println("Exiting azp-agent-autoscaler")
 }
 
-func autoscale(k8sClient *k8s.Clientset, azdClient azuredevops.Client, deployment *appsv1.StatefulSet, min int, max int) error {
+func autoscale(getAgentsFunc func() ([]azuredevops.AgentDetails, error), deployment *appsv1.StatefulSet, scaleFunc func(replicas int32) error, min int, max int) error {
+	//replicasToSet := max
+
+	//return scaleFunc(replicasToSet)
+
 	return nil
 }
 
@@ -133,4 +189,27 @@ func homepath() string {
 		return home
 	}
 	return os.Getenv("USERPROFILE") // windows
+}
+
+func verifyNoHorizontalPodAutoscaler(channel chan<- error, k8sClient *k8s.Clientset, deployment *appsv1.StatefulSet) {
+	hpas, err := k8sClient.AutoscalingV1().HorizontalPodAutoscalers(deployment.Namespace).List(metav1.ListOptions{})
+	if err != nil {
+		panic(fmt.Sprintf("Error retrieving HorizontalPodAutoscalers: %s", err.Error()))
+	}
+	for _, hpa := range hpas.Items {
+		if hpa.Spec.ScaleTargetRef.Kind == "StatefulSet" && hpa.Spec.ScaleTargetRef.Name == deployment.Name {
+			channel <- fmt.Errorf("Error: statefulset/%s cannot have a HorizontalPodAutoscaler attached for azp-agent-autoscaler to work", deployment.Name)
+			return
+		}
+	}
+
+	channel <- nil
+}
+
+func getEnvValue(env corev1.EnvVar) (string, error) {
+	if env.Value != "" {
+		return env.Value, nil
+	}
+	// TODO implement ValueFrom
+	return "", fmt.Errorf("Error getting value for environment variable %s", env.Name)
 }

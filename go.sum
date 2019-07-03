@@ -95,6 +95,7 @@ k8s.io/apimachinery v0.0.0-20190313205120-d7deff9243b1 h1:IS7K02iBkQXpCeieSiyJjG
 k8s.io/apimachinery v0.0.0-20190313205120-d7deff9243b1/go.mod h1:ccL7Eh7zubPUSh9A3USN90/OzHNSVN6zxzde07TDCL0=
 k8s.io/apimachinery v0.0.0-20190627205106-bc5732d141a8 h1:UcOk1VIIoA0ul/qo7RT4fD6bQiEEgVcP3WYuK8fpBYk=
 k8s.io/apimachinery v0.0.0-20190627205106-bc5732d141a8/go.mod h1:T1Vra67tZppnhHB3gqfn8/pmTb9EMVZXLvaevIRo6cU=
+k8s.io/apimachinery v0.0.0-20190629125103-05b5762916b3 h1:MmzCH8A05OJI3Eq++MvQaFmtaI3QsX57qJ1puoHEekY=
 k8s.io/client-go v11.0.0+incompatible h1:LBbX2+lOwY9flffWlJM7f1Ct8V2SRNiMRDFeiwnJo9o=
 k8s.io/client-go v11.0.0+incompatible/go.mod h1:7vJpHMYJwNQCWgzmNV+VYUl1zCObLyodBc8nIyt8L5s=
 k8s.io/klog v0.3.0/go.mod h1:Gq+BEi5rUBO/HRz0bTSXDUcqjScdoY3a9IHpCEIOOfk=
