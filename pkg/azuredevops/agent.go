@@ -18,8 +18,8 @@ type AgentDetails struct {
 	SystemCapabilities   map[string]string `json:"systemCapabilities"`
 	MaxParallelism       int               `json:"maxParallelism"`
 	CreatedOn            string            `json:"createdOn"`
-	AssignedRequest      AgentRequest      `json:"assignedRequest"`
-	LastCompletedRequest AgentRequest      `json:"lastCompletedRequest"`
+	AssignedRequest      *AgentRequest     `json:"assignedRequest"`
+	LastCompletedRequest *AgentRequest     `json:"lastCompletedRequest"`
 }
 
 // AgentRequest represents a requested job a pool has or is running.
@@ -37,11 +37,11 @@ type AgentRequest struct {
 	PlanID                 string            `json:"planId"`
 	JobID                  string            `json:"jobId"`
 	Demands                []string          `json:"demands"`
-	ReservedAgent          Agent             `json:"reservedAgent"`
+	ReservedAgent          *Agent            `json:"reservedAgent"`
 	Data                   map[string]string `json:"data"`
 	PoolID                 int               `json:"poolId"`
 	OrchestrationID        string            `json:"orchestrationId"`
 	MatchesAllAgentsInPool bool              `json:"matchesAllAgentsInPool"`
-	Definition             Definition        `json:"definition"`
-	Owner                  Definition        `json:"definition"`
+	Definition             *Definition       `json:"definition"`
+	Owner                  *Definition       `json:"definition"`
 }

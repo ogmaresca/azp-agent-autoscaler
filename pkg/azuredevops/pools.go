@@ -15,8 +15,8 @@ type PoolDetails struct {
 	AutoSize      bool   `json:"autoSize"`
 	TargetSize    int    `json:"targetSize"`
 	AgentCloudID  int    `json:"agentCloudId"`
-	CreatedBy     User   `json:"createdBy"`
-	Owner         User   `json:"owner"`
+	CreatedBy     *User  `json:"createdBy"`
+	Owner         *User  `json:"owner"`
 	Scope         string `json:"scope"`
 	IsHosted      bool   `json:"isHosted"`
 	PoolType      string `json:"poolType"`

@@ -1,0 +1,125 @@
+package helpers
+
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8s "k8s.io/client-go/kubernetes"
+	k8srest "k8s.io/client-go/rest"
+	k8sclientcmd "k8s.io/client-go/tools/clientcmd"
+)
+
+//var k8sClient = nil.(*k8s.ClientSet)
+//ar k8sClient *k8s.ClientSet
+
+// GetK8sClient returns a Kubernetes client, which is cached
+func getK8sClient() (*k8s.Clientset, error) {
+	/*if k8sClient != nil {
+		return nil, k8sClient
+	}*/
+
+	k8sConfig, err := k8srest.InClusterConfig()
+	if err != nil {
+		kubeconfigEnv := os.Getenv("KUBECONFIG")
+		k8sConfig, err = k8sclientcmd.BuildConfigFromFlags("", kubeconfigEnv)
+		if err != nil {
+			home := os.Getenv("HOME")
+			if home == "" {
+				home = os.Getenv("USERPROFILE") // windows
+			}
+			k8sConfig, err = k8sclientcmd.BuildConfigFromFlags("", fmt.Sprintf("%s/.kube/config", home))
+			if err != nil {
+				return nil, fmt.Errorf("Error initializing Kubernetes config: %s", err.Error())
+			}
+		}
+	}
+
+	k8sClient, err := k8s.NewForConfig(k8sConfig)
+	return k8sClient, err
+}
+
+// GetK8sResource retrieves a KubernetesResource
+func GetK8sResource(channel chan<- KubernetesResourceReturn, kind string, namespace string, name string) {
+	if strings.EqualFold(kind, "StatefulSet") {
+		channel <- getStatefulSet(namespace, name)
+	} else {
+		channel <- GetKubernetesResourceReturn(nil, fmt.Errorf("Resource kind %s is not implemented", kind))
+	}
+}
+
+func getStatefulSet(namespace string, name string) KubernetesResourceReturn {
+	client, err := getK8sClient()
+	if err != nil {
+		return GetKubernetesResourceReturn(nil, err)
+	}
+	statefulSet, err := client.AppsV1().StatefulSets(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return GetKubernetesResourceReturn(nil, err)
+	} else if statefulSet == nil {
+		return GetKubernetesResourceReturn(nil, fmt.Errorf("Could not find statefulset/%s in namespace %s", name, namespace))
+	} else {
+		return GetKubernetesResource(statefulSet)
+	}
+}
+
+// VerifyNoHorizontalPodAutoscaler returns an error if the given resource has a HorizontalPodAutoscaler
+func VerifyNoHorizontalPodAutoscaler(channel chan<- error, kind string, namespace string, name string) {
+	client, err := getK8sClient()
+	if err != nil {
+		channel <- err
+		return
+	}
+	hpas, err := client.AutoscalingV1().HorizontalPodAutoscalers(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		channel <- err
+		return
+	}
+	for _, hpa := range hpas.Items {
+		if strings.EqualFold(hpa.Spec.ScaleTargetRef.Kind, kind) && hpa.Spec.ScaleTargetRef.Name == name {
+			channel <- fmt.Errorf("Error: %s/%s cannot have a HorizontalPodAutoscaler attached for azp-agent-autoscaler to work", strings.ToLower(kind), name)
+			return
+		}
+	}
+
+	channel <- nil
+}
+
+// Scale scales a given Kubernetes resource
+func Scale(resource *KubernetesResource, replicas int32) error {
+	if strings.EqualFold(resource.Kind, "StatefulSet") {
+		return scaleStatefulSet(resource, replicas)
+	} else {
+		return fmt.Errorf("Resource kind %s is not implemented", resource.Kind)
+	}
+}
+
+func scaleStatefulSet(resource *KubernetesResource, replicas int32) error {
+	client, err := getK8sClient()
+	if err != nil {
+		return err
+	}
+	statefulSets := client.AppsV1().StatefulSets(resource.Namespace)
+	scale, err := statefulSets.GetScale(resource.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
+	}
+	if scale.Spec.Replicas == replicas {
+		return nil
+	}
+	println("Adjusting %s to %d replicas", resource.FriendlyName, replicas)
+	scale.Spec.Replicas = replicas
+	//scale, err = statefulSets.UpdateScale(resource.Name, scale)
+	return err
+}
+
+// GetEnvValue gets an environment variable value
+func GetEnvValue(env corev1.EnvVar) (string, error) {
+	if env.Value != "" {
+		return env.Value, nil
+	}
+	// TODO implement ValueFrom
+	return "", fmt.Errorf("Error getting value for environment variable %s", env.Name)
+}

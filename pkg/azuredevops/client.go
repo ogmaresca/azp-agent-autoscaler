@@ -67,37 +67,55 @@ func (c *Client) executeGETRequest(endpoint string, response interface{}) error 
 	return nil
 }
 
+// PoolDetailsResponse is a wrapper for []PoolDetails to allow also returning an error in channels
+type PoolDetailsResponse struct {
+	Pools []PoolDetails
+	Err   error
+}
+
 // ListPools retrieves a list of agent pools
-func (c *Client) ListPools() ([]PoolDetails, error) {
+func (c *Client) ListPools(channel chan<- PoolDetailsResponse) {
 	response := new(PoolList)
 	err := c.executeGETRequest(getPoolsEndpoint, response)
 	if err != nil {
-		return nil, err
+		channel <- PoolDetailsResponse{nil, err}
+	} else {
+		channel <- PoolDetailsResponse{response.Value, nil}
 	}
+}
 
-	return response.Value, nil
+// PoolAgentsResponse is a wrapper for []AgentDetails to allow also returning an error in channels
+type PoolAgentsResponse struct {
+	Agents []AgentDetails
+	Err    error
 }
 
 // ListPoolAgents retrieves all of the agents in a pool
-func (c *Client) ListPoolAgents(poolID int) ([]AgentDetails, error) {
+func (c *Client) ListPoolAgents(channel chan<- PoolAgentsResponse, poolID int) {
 	response := new(Pool)
 	endpoint := fmt.Sprintf(getPoolAgentsEndpoint, poolID)
 	err := c.executeGETRequest(endpoint, response)
 	if err != nil {
-		return nil, err
+		channel <- PoolAgentsResponse{nil, err}
+	} else {
+		channel <- PoolAgentsResponse{response.Value, nil}
 	}
+}
 
-	return response.Value, nil
+// PoolAgentResponse is a wrapper for AgentDetails to allow also returning an error in channels
+type PoolAgentResponse struct {
+	Agent *AgentDetails
+	Err   error
 }
 
 // GetPoolAgent retrieves a single agent in a pool
-func (c *Client) GetPoolAgent(poolID int, agentID int) (*AgentDetails, error) {
+func (c *Client) GetPoolAgent(channel chan<- PoolAgentResponse, poolID int, agentID int) {
 	response := new(AgentDetails)
 	endpoint := fmt.Sprintf(getAgentEndpoint, poolID, agentID)
 	err := c.executeGETRequest(endpoint, response)
 	if err != nil {
-		return nil, err
+		channel <- PoolAgentResponse{nil, err}
+	} else {
+		channel <- PoolAgentResponse{response, nil}
 	}
-
-	return response, nil
 }
