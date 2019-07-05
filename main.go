@@ -9,6 +9,8 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/azuredevops"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/helpers"
 )
@@ -164,29 +166,59 @@ agentPoolNameLoop:
 
 func autoscale(getAgentsFunc func(channel chan<- azuredevops.PoolAgentsResponse), deployment *helpers.KubernetesWorkload) error {
 	agentsChan := make(chan azuredevops.PoolAgentsResponse)
+	podsChan := make(chan helpers.Pods)
+
 	go getAgentsFunc(agentsChan)
+	go helpers.GetPods(podsChan, deployment)
+
 	agents := <-agentsChan
 	if agents.Err != nil {
 		return agents.Err
 	}
+	pods := <-podsChan
+	if pods.Err != nil {
+		return pods.Err
+	}
+
+	podNames := make(map[string]struct{})
+	numPods := int32(len(pods.Pods))
+	numRunningPods, numPendingPods := int32(0), int32(0)
+	for _, pod := range pods.Pods {
+		var void struct{}
+		podNames[pod.Name] = void
+		if pod.Status.Phase == corev1.PodRunning {
+			numRunningPods = numRunningPods + 1
+		} else if pod.Status.Phase == corev1.PodPending {
+			numPendingPods = numPendingPods + 1
+		}
+	}
+	numFailedPods := numPods - numRunningPods - numPendingPods
+
+	logger.Tracef("%d pods (%d running, %d pending, %d failed)", numPods, numRunningPods, numPendingPods, numFailedPods)
 
 	min32 := int32(*min)
 	max32 := int32(*max)
 
-	replicasToSet := min32
-
+	// Get number of active agents
 	numActiveAgents := int32(0)
 	for _, agent := range agents.Agents {
-		if agent.AssignedRequest != nil {
-			numActiveAgents = numActiveAgents + 1
+		if strings.EqualFold(agent.Status, "online") {
+			podName := agent.SystemCapabilities["HOSTNAME"]
+			_, inCluster := podNames[podName]
+			if inCluster && agent.AssignedRequest != nil {
+				numActiveAgents = numActiveAgents + 1
+			}
 		}
 	}
 
-	// TODO take into account only active pods when determine to scale up/down
-	// TODO can the agents be filtered to only include those in the statefulset? HOSTNAME is best bet
-	logger.Infof("Found %d active agents out of %d", numActiveAgents, len(agents.Agents))
+	logger.Debugf("Found %d active agents out of %d agents in the cluster.", numActiveAgents, numPods)
 
-	// Get number of active agents
+	if numRunningPods != numPods {
+		logger.Infof("Not scaling - there are %d pending pods and %d failed pods.", numPendingPods, numFailedPods)
+		return nil
+	}
+
+	replicasToSet := min32
 	if numActiveAgents > min32 {
 		replicasToSet = numActiveAgents + min32
 		if replicasToSet > max32 {

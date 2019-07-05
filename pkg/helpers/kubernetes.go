@@ -116,7 +116,6 @@ func scaleStatefulSet(resource *KubernetesWorkload, replicas int32) error {
 	if scale.Spec.Replicas == replicas {
 		return nil
 	}
-	println("Adjusting %s to %d replicas", resource.FriendlyName, replicas)
 	scale.Spec.Replicas = replicas
 	//scale, err = statefulSets.UpdateScale(resource.Name, scale)
 	return err
@@ -131,17 +130,17 @@ func GetEnvValue(env corev1.EnvVar) (string, error) {
 	return "", fmt.Errorf("Error getting value for environment variable %s", env.Name)
 }
 
-// PodReturn is a wrapper around []corev1.Pod to allow returning multiple values in a channel
-type PodReturn struct {
+// Pods is a wrapper around []corev1.Pod to allow returning multiple values in a channel
+type Pods struct {
 	Pods []corev1.Pod
 	Err  error
 }
 
 // GetPods gets all pods attached to some workload
-func GetPods(channel chan<- PodReturn, workload *KubernetesWorkload) {
+func GetPods(channel chan<- Pods, workload *KubernetesWorkload) {
 	client, err := k8sClient.getClient()
 	if err != nil {
-		channel <- PodReturn{nil, err}
+		channel <- Pods{nil, err}
 		return
 	}
 
@@ -150,8 +149,8 @@ func GetPods(channel chan<- PodReturn, workload *KubernetesWorkload) {
 	}
 	pods, err := client.CoreV1().Pods(workload.Namespace).List(listOptions)
 	if err != nil {
-		channel <- PodReturn{nil, err}
+		channel <- Pods{nil, err}
 	} else {
-		channel <- PodReturn{pods.Items, nil}
+		channel <- Pods{pods.Items, nil}
 	}
 }
