@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -29,18 +28,6 @@ var (
 	resourceNamespace = flag.String("namespace", "", "The namespace of the StatefulSet.")
 	azpToken          = flag.String("token", "", "The Azure Devops token.")
 	azpURL            = flag.String("url", "", "The Azure Devops URL. https://dev.azure.com/AccountName")
-
-	logger = log.Logger{
-		Out: os.Stderr,
-		Formatter: &log.TextFormatter{
-			DisableColors: true,
-			FullTimestamp: true,
-		},
-		Hooks:        make(log.LevelHooks),
-		Level:        log.InfoLevel,
-		ExitFunc:     os.Exit,
-		ReportCaller: false,
-	}
 )
 
 func main() {
@@ -59,7 +46,9 @@ func main() {
 	if *max <= *min {
 		validationErrors = append(validationErrors, "Max pods argument must be greater than the minimum.")
 	}
-	if rate.Seconds() <= 1 {
+	if rate == nil {
+		validationErrors = append(validationErrors, "Rate is required.")
+	} else if rate.Seconds() <= 1 {
 		validationErrors = append(validationErrors, fmt.Sprintf("Rate '%s' is too low.", rate.String()))
 	}
 	if *scaleDownMax < 1 {
@@ -84,7 +73,7 @@ func main() {
 		panic(fmt.Errorf("Error(s) with arguments:\n%s", strings.Join(validationErrors, "\n")))
 	}
 
-	logger.SetLevel(logrusLevel)
+	helpers.Logger.SetLevel(logrusLevel)
 
 	// Initialize Azure Devops client
 	azdClient := azuredevops.MakeClient(*azpURL, *azpToken)
@@ -102,16 +91,16 @@ func main() {
 
 	deployment := <-deploymentChan
 	if deployment.Err != nil {
-		logger.Panicf("Error retrieving %s/%s in namespace %s: %s", strings.ToLower(*resourceType), *resourceName, *resourceNamespace, deployment.Err.Error())
+		helpers.Logger.Panicf("Error retrieving %s/%s in namespace %s: %s", strings.ToLower(*resourceType), *resourceName, *resourceNamespace, deployment.Err.Error())
 	}
 	if err := <-verifyHPAChan; err != nil {
-		logger.Panic(err.Error())
+		helpers.Logger.Panic(err.Error())
 	}
 	agentPools := <-agentPoolsChan
 	if agentPools.Err != nil {
-		logger.Panicf("Error retrieving agent pools: %s", agentPools.Err.Error())
+		helpers.Logger.Panicf("Error retrieving agent pools: %s", agentPools.Err.Error())
 	} else if len(agentPools.Pools) == 0 {
-		logger.Panic("Error - did not find any agent pools")
+		helpers.Logger.Panic("Error - did not find any agent pools")
 	}
 
 	// Discover the pool name from the environment variables
@@ -122,7 +111,7 @@ agentPoolNameLoop:
 			if env.Name == poolNameEnvVar {
 				envValue, err := helpers.GetEnvValue(env)
 				if err != nil {
-					logger.Panicf("Error getting Agent Pool - could not retrieve environment variable %s from statefulset/%s: %s", poolNameEnvVar, deployment.Resource.Name, err.Error())
+					helpers.Logger.Panicf("Error getting Agent Pool - could not retrieve environment variable %s from statefulset/%s: %s", poolNameEnvVar, deployment.Resource.Name, err.Error())
 				}
 				agentPoolName = &envValue
 				break agentPoolNameLoop
@@ -130,9 +119,9 @@ agentPoolNameLoop:
 		}
 	}
 	if agentPoolName == nil {
-		logger.Panicf("Could not retrieve environment variable %s from statefulset/%s", poolNameEnvVar, deployment.Resource.Name)
+		helpers.Logger.Panicf("Could not retrieve environment variable %s from statefulset/%s", poolNameEnvVar, deployment.Resource.Name)
 	} else {
-		logger.Debugf("Found agent pool %s from %s", *agentPoolName, deployment.Resource.FriendlyName)
+		helpers.Logger.Debugf("Found agent pool %s from %s", *agentPoolName, deployment.Resource.FriendlyName)
 	}
 
 	var agentPoolID *int
@@ -143,44 +132,70 @@ agentPoolNameLoop:
 		}
 	}
 	if agentPoolID == nil {
-		logger.Panicf("Error - could not find an agent pool with name %s", *agentPoolName)
+		helpers.Logger.Panicf("Error - could not find an agent pool with name %s", *agentPoolName)
 	} else {
-		logger.Debugf("Agent pool %s has ID %d", *agentPoolName, *agentPoolID)
+		helpers.Logger.Debugf("Agent pool %s has ID %d", *agentPoolName, *agentPoolID)
 	}
 
 	getAgentsFunc := func(channel chan<- azuredevops.PoolAgentsResponse) {
 		azdClient.ListPoolAgents(channel, *agentPoolID)
 	}
 
-	for {
-		err := autoscale(getAgentsFunc, deployment.Resource)
-		if err != nil {
-			logger.Panicf("Error autoscaling statefulset/%s: %s", deployment.Resource.Name, err.Error())
-		}
-
-		time.Sleep(*rate)
+	getJobRequestsFunc := func(channel chan<- azuredevops.JobRequestsResponse) {
+		azdClient.ListJobRequests(channel, *agentPoolID)
 	}
 
-	logger.Info("Exiting azp-agent-autoscaler")
+	for {
+		err := autoscale(getAgentsFunc, getJobRequestsFunc, deployment.Resource)
+		if err != nil {
+			switch t := err.(type) {
+			case azuredevops.HTTPError:
+				httpError := err.(azuredevops.HTTPError)
+				if httpError.RetryAfter != nil {
+					helpers.Logger.Warnf("%s %s", t, httpError.Error())
+					timeToSleep := httpError.RetryAfter
+					if httpError.RetryAfter.Seconds() < rate.Seconds() {
+						timeToSleep = rate
+					}
+					helpers.Logger.Infof("Retrying after %s", timeToSleep.String())
+					time.Sleep(*timeToSleep)
+				}
+			default:
+				// Do nothing
+			}
+
+			helpers.Logger.Panicf("Error autoscaling statefulset/%s: %s", deployment.Resource.Name, err.Error())
+		} else {
+			time.Sleep(*rate)
+		}
+	}
+
+	helpers.Logger.Info("Exiting azp-agent-autoscaler")
 }
 
-func autoscale(getAgentsFunc func(channel chan<- azuredevops.PoolAgentsResponse), deployment *helpers.KubernetesWorkload) error {
+func autoscale(getAgentsFunc func(channel chan<- azuredevops.PoolAgentsResponse), getJobRequestsFunc func(channel chan<- azuredevops.JobRequestsResponse), deployment *helpers.KubernetesWorkload) error {
 	agentsChan := make(chan azuredevops.PoolAgentsResponse)
+	jobsChan := make(chan azuredevops.JobRequestsResponse)
 	podsChan := make(chan helpers.Pods)
 
 	go getAgentsFunc(agentsChan)
+	go getJobRequestsFunc(jobsChan)
 	go helpers.GetPods(podsChan, deployment)
 
 	agents := <-agentsChan
 	if agents.Err != nil {
 		return agents.Err
 	}
+	jobs := <-jobsChan
+	if jobs.Err != nil {
+		return jobs.Err
+	}
 	pods := <-podsChan
 	if pods.Err != nil {
 		return pods.Err
 	}
 
-	podNames := make(map[string]struct{})
+	podNames := make(helpers.StringSet)
 	numPods := int32(len(pods.Pods))
 	numRunningPods, numPendingPods := int32(0), int32(0)
 	for _, pod := range pods.Pods {
@@ -194,30 +209,50 @@ func autoscale(getAgentsFunc func(channel chan<- azuredevops.PoolAgentsResponse)
 	}
 	numFailedPods := numPods - numRunningPods - numPendingPods
 
-	logger.Tracef("%d pods (%d running, %d pending, %d failed)", numPods, numRunningPods, numPendingPods, numFailedPods)
+	helpers.Logger.Tracef("%d pods (%d running, %d pending, %d failed)", numPods, numRunningPods, numPendingPods, numFailedPods)
 
 	min32 := int32(*min)
 	max32 := int32(*max)
 
 	// Get number of active agents
+	runningJobRequestIDs := make(map[int]struct{})
 	numActiveAgents := int32(0)
+	activeAgentNames := make(map[string]struct{})
 	for _, agent := range agents.Agents {
 		if strings.EqualFold(agent.Status, "online") {
 			podName := agent.SystemCapabilities["HOSTNAME"]
-			_, inCluster := podNames[podName]
-			if inCluster && agent.AssignedRequest != nil {
+			if podNames.Contains(podName) && agent.AssignedRequest != nil {
+				var void struct{}
 				numActiveAgents = numActiveAgents + 1
+				runningJobRequestIDs[agent.AssignedRequest.RequestID] = void
+				activeAgentNames[agent.Name] = void
 			}
 		}
 	}
 
-	logger.Debugf("Found %d active agents out of %d agents in the cluster.", numActiveAgents, numPods)
+	numQueuedJobs := int32(0)
+	for _, job := range jobs.Jobs {
+		if job.IsQueuedOrRunning() {
+			if job.ReservedAgent == nil && len(job.MatchedAgents) > 0 {
+				for _, agent := range job.MatchedAgents {
+					_, queuedForCluster := activeAgentNames[agent.Name]
+					if queuedForCluster {
+						numQueuedJobs = numQueuedJobs + 1
+						break
+					}
+				}
+			}
+		}
+	}
+
+	helpers.Logger.Debugf("Found %d active agents out of %d agents in the cluster. There are %d queued jobs.", numActiveAgents, numPods, numQueuedJobs)
 
 	if numRunningPods != numPods {
-		logger.Infof("Not scaling - there are %d pending pods and %d failed pods.", numPendingPods, numFailedPods)
+		helpers.Logger.Infof("Not scaling - there are %d pending pods and %d failed pods.", numPendingPods, numFailedPods)
 		return nil
 	}
 
+	// TODO use all these variables to calculate needed pods
 	replicasToSet := min32
 	if numActiveAgents > min32 {
 		replicasToSet = numActiveAgents + min32

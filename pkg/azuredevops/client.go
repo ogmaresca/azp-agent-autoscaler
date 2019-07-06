@@ -15,6 +15,8 @@ const getPoolAgentsEndpoint = "/_apis/distributedtask/pools/%d/agents?includeCap
 // Parameter 1 is the Pool ID, Parameter 2 is the Agent ID
 const getAgentEndpoint = "/_apis/distributedtask/pools/%d/agents/%d?includeCapabilities=true&includeAssignedRequest=true&includeLastCompletedRequest=true"
 
+const getPoolJobRequestsEndpoint = "/_apis/distributedtask/pools/%d/jobrequests"
+
 const acceptHeader = "application/json;api-version=5.0-preview.1"
 
 // Client is used to call Azure Devops
@@ -56,7 +58,7 @@ func (c *Client) executeGETRequest(endpoint string, response interface{}) error 
 	defer httpResponse.Body.Close()
 
 	if httpResponse.StatusCode != 200 {
-		return fmt.Errorf("Error - received HTTP status code %d when calling call to %s", httpResponse.StatusCode, endpoint)
+		return NewHTTPError(httpResponse)
 	}
 
 	err = json.NewDecoder(httpResponse.Body).Decode(response)
@@ -117,5 +119,23 @@ func (c *Client) GetPoolAgent(channel chan<- PoolAgentResponse, poolID int, agen
 		channel <- PoolAgentResponse{nil, err}
 	} else {
 		channel <- PoolAgentResponse{response, nil}
+	}
+}
+
+// JobRequestsResponse is a wrapper for JobRequests to allow also returning an error in channels
+type JobRequestsResponse struct {
+	Jobs []JobRequest
+	Err  error
+}
+
+// ListJobRequests retrieves the job requests for a pool
+func (c *Client) ListJobRequests(channel chan<- JobRequestsResponse, poolID int) {
+	response := new(JobRequests)
+	endpoint := fmt.Sprintf(getPoolJobRequestsEndpoint, poolID)
+	err := c.executeGETRequest(endpoint, response)
+	if err != nil {
+		channel <- JobRequestsResponse{nil, err}
+	} else {
+		channel <- JobRequestsResponse{response.Value, nil}
 	}
 }
