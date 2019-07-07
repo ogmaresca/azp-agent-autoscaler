@@ -66,12 +66,6 @@ func (c ClientImpl) executeGETRequest(endpoint string, response interface{}) err
 	return nil
 }
 
-// PoolDetailsResponse is a wrapper for []PoolDetails to allow also returning an error in channels
-type PoolDetailsResponse struct {
-	Pools []PoolDetails
-	Err   error
-}
-
 // ListPools retrieves a list of agent pools
 func (c ClientImpl) ListPools() ([]PoolDetails, error) {
 	return c.ListPoolsByName("")
@@ -89,12 +83,6 @@ func (c ClientImpl) ListPoolsByName(poolName string) ([]PoolDetails, error) {
 	}
 }
 
-// PoolAgentsResponse is a wrapper for []AgentDetails to allow also returning an error in channels
-type PoolAgentsResponse struct {
-	Agents []AgentDetails
-	Err    error
-}
-
 // ListPoolAgents retrieves all of the agents in a pool
 func (c ClientImpl) ListPoolAgents(poolID int) ([]AgentDetails, error) {
 	response := new(Pool)
@@ -107,12 +95,6 @@ func (c ClientImpl) ListPoolAgents(poolID int) ([]AgentDetails, error) {
 	}
 }
 
-// PoolAgentResponse is a wrapper for AgentDetails to allow also returning an error in channels
-type PoolAgentResponse struct {
-	Agent *AgentDetails
-	Err   error
-}
-
 // GetPoolAgent retrieves a single agent in a pool
 func (c ClientImpl) GetPoolAgent(poolID int, agentID int) (*AgentDetails, error) {
 	response := new(AgentDetails)
@@ -123,12 +105,6 @@ func (c ClientImpl) GetPoolAgent(poolID int, agentID int) (*AgentDetails, error)
 	} else {
 		return response, nil
 	}
-}
-
-// JobRequestsResponse is a wrapper for JobRequests to allow also returning an error in channels
-type JobRequestsResponse struct {
-	Jobs []JobRequest
-	Err  error
 }
 
 // ListJobRequests retrieves the job requests for a pool

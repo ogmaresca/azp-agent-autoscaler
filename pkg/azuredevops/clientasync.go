@@ -31,6 +31,12 @@ func MakeClient(baseURL string, token string) ClientAsync {
 	}
 }
 
+// PoolDetailsResponse is a wrapper for []PoolDetails to allow also returning an error in channels
+type PoolDetailsResponse struct {
+	Pools []PoolDetails
+	Err   error
+}
+
 // ListPoolsAsync retrieves a list of agent pools
 func (c ClientAsyncImpl) ListPoolsAsync(channel chan<- PoolDetailsResponse) {
 	response, err := c.client.ListPools()
@@ -43,16 +49,34 @@ func (c ClientAsyncImpl) ListPoolsByNameAsync(channel chan<- PoolDetailsResponse
 	channel <- PoolDetailsResponse{response, err}
 }
 
+// PoolAgentsResponse is a wrapper for []AgentDetails to allow also returning an error in channels
+type PoolAgentsResponse struct {
+	Agents []AgentDetails
+	Err    error
+}
+
 // ListPoolAgentsAsync retrieves all of the agents in a pool
 func (c ClientAsyncImpl) ListPoolAgentsAsync(channel chan<- PoolAgentsResponse, poolID int) {
 	response, err := c.client.ListPoolAgents(poolID)
 	channel <- PoolAgentsResponse{response, err}
 }
 
+// PoolAgentResponse is a wrapper for AgentDetails to allow also returning an error in channels
+type PoolAgentResponse struct {
+	Agent *AgentDetails
+	Err   error
+}
+
 // GetPoolAgentAsync retrieves a single agent in a pool
 func (c ClientAsyncImpl) GetPoolAgentAsync(channel chan<- PoolAgentResponse, poolID int, agentID int) {
 	response, err := c.client.GetPoolAgent(poolID, agentID)
 	channel <- PoolAgentResponse{response, err}
+}
+
+// JobRequestsResponse is a wrapper for JobRequests to allow also returning an error in channels
+type JobRequestsResponse struct {
+	Jobs []JobRequest
+	Err  error
 }
 
 // ListJobRequestsAsync retrieves the job requests for a pool
