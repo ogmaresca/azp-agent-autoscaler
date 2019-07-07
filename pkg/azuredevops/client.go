@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 )
 
 const getPoolsEndpoint = "/_apis/distributedtask/pools?poolName=%s"
@@ -20,24 +19,22 @@ const getPoolJobRequestsEndpoint = "/_apis/distributedtask/pools/%d/jobrequests"
 const acceptHeader = "application/json;api-version=5.0-preview.1"
 
 // Client is used to call Azure Devops
-type Client struct {
+type Client interface {
+	ListPools() ([]PoolDetails, error)
+	ListPoolsByName(poolName string) ([]PoolDetails, error)
+	ListPoolAgents(poolID int) ([]AgentDetails, error)
+	GetPoolAgent(poolID int, agentID int) (*AgentDetails, error)
+	ListJobRequests(poolID int) ([]JobRequest, error)
+}
+
+// ClientImpl is the interface implementation that calls Azure Devops
+type ClientImpl struct {
 	baseURL string
 
 	token string
 }
 
-// MakeClient creates a new Azure Devops client
-func MakeClient(baseURL string, token string) Client {
-	if !strings.HasSuffix(baseURL, "") {
-		baseURL = strings.TrimSuffix(baseURL, "/")
-	}
-	return Client{
-		baseURL: baseURL,
-		token:   token,
-	}
-}
-
-func (c *Client) executeGETRequest(endpoint string, response interface{}) error {
+func (c ClientImpl) executeGETRequest(endpoint string, response interface{}) error {
 	request, err := http.NewRequest("GET", c.baseURL+endpoint, nil)
 
 	if err != nil {
@@ -76,18 +73,12 @@ type PoolDetailsResponse struct {
 }
 
 // ListPools retrieves a list of agent pools
-func (c *Client) ListPools() ([]PoolDetails, error) {
+func (c ClientImpl) ListPools() ([]PoolDetails, error) {
 	return c.ListPoolsByName("")
 }
 
-// ListPoolsAsync retrieves a list of agent pools
-func (c *Client) ListPoolsAsync(channel chan<- PoolDetailsResponse) {
-	response, err := c.ListPools()
-	channel <- PoolDetailsResponse{response, err}
-}
-
 // ListPoolsByName retrieves a list of agent pools with the given name
-func (c *Client) ListPoolsByName(poolName string) ([]PoolDetails, error) {
+func (c ClientImpl) ListPoolsByName(poolName string) ([]PoolDetails, error) {
 	response := new(PoolList)
 	endpoint := fmt.Sprintf(getPoolsEndpoint, poolName)
 	err := c.executeGETRequest(endpoint, response)
@@ -98,12 +89,6 @@ func (c *Client) ListPoolsByName(poolName string) ([]PoolDetails, error) {
 	}
 }
 
-// ListPoolsByNameAsync retrieves a list of agent pools with the given name
-func (c *Client) ListPoolsByNameAsync(channel chan<- PoolDetailsResponse, poolName string) {
-	response, err := c.ListPoolsByName(poolName)
-	channel <- PoolDetailsResponse{response, err}
-}
-
 // PoolAgentsResponse is a wrapper for []AgentDetails to allow also returning an error in channels
 type PoolAgentsResponse struct {
 	Agents []AgentDetails
@@ -111,7 +96,7 @@ type PoolAgentsResponse struct {
 }
 
 // ListPoolAgents retrieves all of the agents in a pool
-func (c *Client) ListPoolAgents(poolID int) ([]AgentDetails, error) {
+func (c ClientImpl) ListPoolAgents(poolID int) ([]AgentDetails, error) {
 	response := new(Pool)
 	endpoint := fmt.Sprintf(getPoolAgentsEndpoint, poolID)
 	err := c.executeGETRequest(endpoint, response)
@@ -122,12 +107,6 @@ func (c *Client) ListPoolAgents(poolID int) ([]AgentDetails, error) {
 	}
 }
 
-// ListPoolAgentsAsync retrieves all of the agents in a pool
-func (c *Client) ListPoolAgentsAsync(channel chan<- PoolAgentsResponse, poolID int) {
-	response, err := c.ListPoolAgents(poolID)
-	channel <- PoolAgentsResponse{response, err}
-}
-
 // PoolAgentResponse is a wrapper for AgentDetails to allow also returning an error in channels
 type PoolAgentResponse struct {
 	Agent *AgentDetails
@@ -135,7 +114,7 @@ type PoolAgentResponse struct {
 }
 
 // GetPoolAgent retrieves a single agent in a pool
-func (c *Client) GetPoolAgent(poolID int, agentID int) (*AgentDetails, error) {
+func (c ClientImpl) GetPoolAgent(poolID int, agentID int) (*AgentDetails, error) {
 	response := new(AgentDetails)
 	endpoint := fmt.Sprintf(getAgentEndpoint, poolID, agentID)
 	err := c.executeGETRequest(endpoint, response)
@@ -146,12 +125,6 @@ func (c *Client) GetPoolAgent(poolID int, agentID int) (*AgentDetails, error) {
 	}
 }
 
-// GetPoolAgentAsync retrieves a single agent in a pool
-func (c *Client) GetPoolAgentAsync(channel chan<- PoolAgentResponse, poolID int, agentID int) {
-	response, err := c.GetPoolAgent(poolID, agentID)
-	channel <- PoolAgentResponse{response, err}
-}
-
 // JobRequestsResponse is a wrapper for JobRequests to allow also returning an error in channels
 type JobRequestsResponse struct {
 	Jobs []JobRequest
@@ -159,7 +132,7 @@ type JobRequestsResponse struct {
 }
 
 // ListJobRequests retrieves the job requests for a pool
-func (c *Client) ListJobRequests(poolID int) ([]JobRequest, error) {
+func (c ClientImpl) ListJobRequests(poolID int) ([]JobRequest, error) {
 	response := new(JobRequests)
 	endpoint := fmt.Sprintf(getPoolJobRequestsEndpoint, poolID)
 	err := c.executeGETRequest(endpoint, response)
@@ -168,10 +141,4 @@ func (c *Client) ListJobRequests(poolID int) ([]JobRequest, error) {
 	} else {
 		return response.Value, nil
 	}
-}
-
-// ListJobRequestsAsync retrieves the job requests for a pool
-func (c *Client) ListJobRequestsAsync(channel chan<- JobRequestsResponse, poolID int) {
-	response, err := c.ListJobRequests(poolID)
-	channel <- JobRequestsResponse{response, err}
 }

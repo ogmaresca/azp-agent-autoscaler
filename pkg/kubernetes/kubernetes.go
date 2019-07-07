@@ -1,4 +1,4 @@
-package helpers
+package kubernetes
 
 import (
 	"fmt"
@@ -49,27 +49,27 @@ func (wrapper *k8sClientSet) getClient() (*k8s.Clientset, error) {
 	return clientset, err
 }
 
-// GetK8sWorkload retrieves a KubernetesWorkload
-func GetK8sWorkload(channel chan<- KubernetesWorkloadReturn, kind string, namespace string, name string) {
+// GetK8sWorkload retrieves a Workload
+func GetK8sWorkload(channel chan<- WorkloadReturn, kind string, namespace string, name string) {
 	if strings.EqualFold(kind, "StatefulSet") {
 		channel <- getStatefulSet(namespace, name)
 	} else {
-		channel <- GetKubernetesWorkloadReturn(nil, fmt.Errorf("Resource kind %s is not implemented", kind))
+		channel <- GetWorkloadReturn(nil, fmt.Errorf("Resource kind %s is not implemented", kind))
 	}
 }
 
-func getStatefulSet(namespace string, name string) KubernetesWorkloadReturn {
+func getStatefulSet(namespace string, name string) WorkloadReturn {
 	client, err := k8sClient.getClient()
 	if err != nil {
-		return GetKubernetesWorkloadReturn(nil, err)
+		return GetWorkloadReturn(nil, err)
 	}
 	statefulSet, err := client.AppsV1().StatefulSets(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
-		return GetKubernetesWorkloadReturn(nil, err)
+		return GetWorkloadReturn(nil, err)
 	} else if statefulSet == nil {
-		return GetKubernetesWorkloadReturn(nil, fmt.Errorf("Could not find statefulset/%s in namespace %s", name, namespace))
+		return GetWorkloadReturn(nil, fmt.Errorf("Could not find statefulset/%s in namespace %s", name, namespace))
 	} else {
-		return GetKubernetesWorkload(statefulSet)
+		return GetWorkload(statefulSet)
 	}
 }
 
@@ -96,7 +96,7 @@ func VerifyNoHorizontalPodAutoscaler(channel chan<- error, kind string, namespac
 }
 
 // Scale scales a given Kubernetes resource
-func Scale(resource *KubernetesWorkload, replicas int32) error {
+func Scale(resource *Workload, replicas int32) error {
 	client, err := k8sClient.getClient()
 	if err != nil {
 		return err
@@ -143,7 +143,7 @@ type Pods struct {
 }
 
 // GetPods gets all pods attached to some workload
-func GetPods(channel chan<- Pods, workload *KubernetesWorkload) {
+func GetPods(channel chan<- Pods, workload *Workload) {
 	client, err := k8sClient.getClient()
 	if err != nil {
 		channel <- Pods{nil, err}

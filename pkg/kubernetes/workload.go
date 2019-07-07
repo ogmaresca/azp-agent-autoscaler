@@ -1,4 +1,4 @@
-package helpers
+package kubernetes
 
 import (
 	"fmt"
@@ -11,8 +11,8 @@ import (
 	"github.com/jinzhu/copier"
 )
 
-// KubernetesWorkload represents a "base struct" for Kubernetes workloads
-type KubernetesWorkload struct {
+// Workload represents a "base struct" for Kubernetes workloads
+type Workload struct {
 	metav1.ObjectMeta
 
 	metav1.TypeMeta
@@ -27,15 +27,15 @@ type KubernetesWorkload struct {
 	PodTemplateSpec *corev1.PodTemplateSpec
 }
 
-// KubernetesWorkloadReturn is used to fix the issue with channels not supporting pair return values
-type KubernetesWorkloadReturn struct {
-	Resource *KubernetesWorkload
+// WorkloadReturn is used to fix the issue with channels not supporting pair return values
+type WorkloadReturn struct {
+	Resource *Workload
 	Err      error
 }
 
-// GetKubernetesWorkload creates a KubernetesWorkload from a StatefulSet
-func GetKubernetesWorkload(resource *appsv1.StatefulSet) KubernetesWorkloadReturn {
-	copy := KubernetesWorkload{}
+// GetWorkload creates a KubernetesWorkload from a StatefulSet
+func GetWorkload(resource *appsv1.StatefulSet) WorkloadReturn {
+	copy := Workload{}
 	err := copier.Copy(&copy, resource)
 
 	// TypeMeta fields don't seem to always be populated
@@ -48,10 +48,10 @@ func GetKubernetesWorkload(resource *appsv1.StatefulSet) KubernetesWorkloadRetur
 
 	copy.PodTemplateSpec = &resource.Spec.Template
 
-	return GetKubernetesWorkloadReturn(&copy, err)
+	return GetWorkloadReturn(&copy, err)
 }
 
-// GetKubernetesWorkloadReturn returns a KubernetesWorkloadReturn
-func GetKubernetesWorkloadReturn(resource *KubernetesWorkload, err error) KubernetesWorkloadReturn {
-	return KubernetesWorkloadReturn{resource, err}
+// GetWorkloadReturn returns a KubernetesWorkloadReturn
+func GetWorkloadReturn(resource *Workload, err error) WorkloadReturn {
+	return WorkloadReturn{resource, err}
 }
