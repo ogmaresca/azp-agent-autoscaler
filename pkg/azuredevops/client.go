@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-const getPoolsEndpoint = "/_apis/distributedtask/pools"
+const getPoolsEndpoint = "/_apis/distributedtask/pools?poolName=%s"
 
 // Parameter 1 is the Pool ID
 const getPoolAgentsEndpoint = "/_apis/distributedtask/pools/%d/agents?includeCapabilities=true&includeAssignedRequest=true&includeLastCompletedRequest=true"
@@ -76,14 +76,32 @@ type PoolDetailsResponse struct {
 }
 
 // ListPools retrieves a list of agent pools
-func (c *Client) ListPools(channel chan<- PoolDetailsResponse) {
+func (c *Client) ListPools() ([]PoolDetails, error) {
+	return c.ListPoolsByName("")
+}
+
+// ListPoolsAsync retrieves a list of agent pools
+func (c *Client) ListPoolsAsync(channel chan<- PoolDetailsResponse) {
+	response, err := c.ListPools()
+	channel <- PoolDetailsResponse{response, err}
+}
+
+// ListPoolsByName retrieves a list of agent pools with the given name
+func (c *Client) ListPoolsByName(poolName string) ([]PoolDetails, error) {
 	response := new(PoolList)
-	err := c.executeGETRequest(getPoolsEndpoint, response)
+	endpoint := fmt.Sprintf(getPoolsEndpoint, poolName)
+	err := c.executeGETRequest(endpoint, response)
 	if err != nil {
-		channel <- PoolDetailsResponse{nil, err}
+		return nil, err
 	} else {
-		channel <- PoolDetailsResponse{response.Value, nil}
+		return response.Value, nil
 	}
+}
+
+// ListPoolsByNameAsync retrieves a list of agent pools with the given name
+func (c *Client) ListPoolsByNameAsync(channel chan<- PoolDetailsResponse, poolName string) {
+	response, err := c.ListPoolsByName(poolName)
+	channel <- PoolDetailsResponse{response, err}
 }
 
 // PoolAgentsResponse is a wrapper for []AgentDetails to allow also returning an error in channels
@@ -93,15 +111,21 @@ type PoolAgentsResponse struct {
 }
 
 // ListPoolAgents retrieves all of the agents in a pool
-func (c *Client) ListPoolAgents(channel chan<- PoolAgentsResponse, poolID int) {
+func (c *Client) ListPoolAgents(poolID int) ([]AgentDetails, error) {
 	response := new(Pool)
 	endpoint := fmt.Sprintf(getPoolAgentsEndpoint, poolID)
 	err := c.executeGETRequest(endpoint, response)
 	if err != nil {
-		channel <- PoolAgentsResponse{nil, err}
+		return nil, err
 	} else {
-		channel <- PoolAgentsResponse{response.Value, nil}
+		return response.Value, nil
 	}
+}
+
+// ListPoolAgentsAsync retrieves all of the agents in a pool
+func (c *Client) ListPoolAgentsAsync(channel chan<- PoolAgentsResponse, poolID int) {
+	response, err := c.ListPoolAgents(poolID)
+	channel <- PoolAgentsResponse{response, err}
 }
 
 // PoolAgentResponse is a wrapper for AgentDetails to allow also returning an error in channels
@@ -111,15 +135,21 @@ type PoolAgentResponse struct {
 }
 
 // GetPoolAgent retrieves a single agent in a pool
-func (c *Client) GetPoolAgent(channel chan<- PoolAgentResponse, poolID int, agentID int) {
+func (c *Client) GetPoolAgent(poolID int, agentID int) (*AgentDetails, error) {
 	response := new(AgentDetails)
 	endpoint := fmt.Sprintf(getAgentEndpoint, poolID, agentID)
 	err := c.executeGETRequest(endpoint, response)
 	if err != nil {
-		channel <- PoolAgentResponse{nil, err}
+		return nil, err
 	} else {
-		channel <- PoolAgentResponse{response, nil}
+		return response, nil
 	}
+}
+
+// GetPoolAgentAsync retrieves a single agent in a pool
+func (c *Client) GetPoolAgentAsync(channel chan<- PoolAgentResponse, poolID int, agentID int) {
+	response, err := c.GetPoolAgent(poolID, agentID)
+	channel <- PoolAgentResponse{response, err}
 }
 
 // JobRequestsResponse is a wrapper for JobRequests to allow also returning an error in channels
@@ -129,13 +159,19 @@ type JobRequestsResponse struct {
 }
 
 // ListJobRequests retrieves the job requests for a pool
-func (c *Client) ListJobRequests(channel chan<- JobRequestsResponse, poolID int) {
+func (c *Client) ListJobRequests(poolID int) ([]JobRequest, error) {
 	response := new(JobRequests)
 	endpoint := fmt.Sprintf(getPoolJobRequestsEndpoint, poolID)
 	err := c.executeGETRequest(endpoint, response)
 	if err != nil {
-		channel <- JobRequestsResponse{nil, err}
+		return nil, err
 	} else {
-		channel <- JobRequestsResponse{response.Value, nil}
+		return response.Value, nil
 	}
+}
+
+// ListJobRequestsAsync retrieves the job requests for a pool
+func (c *Client) ListJobRequestsAsync(channel chan<- JobRequestsResponse, poolID int) {
+	response, err := c.ListJobRequests(poolID)
+	channel <- JobRequestsResponse{response, err}
 }

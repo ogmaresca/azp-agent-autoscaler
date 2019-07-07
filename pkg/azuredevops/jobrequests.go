@@ -45,6 +45,7 @@ type JobRequest struct {
 	MatchesAllAgentsInPool bool              `json:"matchesAllAgentsInPool"`
 	Definition             *Definition       `json:"definition"`
 	Owner                  *Definition       `json:"definition"`
+	// AgentDelays            []struct{}        `json:"agentDelays"`
 }
 
 // IsQueuedOrRunning determines if a job is currently queued or running

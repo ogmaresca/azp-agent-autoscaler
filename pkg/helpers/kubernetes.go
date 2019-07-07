@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	corev1 "k8s.io/api/core/v1"
 	apimachinery "k8s.io/apimachinery/pkg/apis/meta/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,20 +97,27 @@ func VerifyNoHorizontalPodAutoscaler(channel chan<- error, kind string, namespac
 
 // Scale scales a given Kubernetes resource
 func Scale(resource *KubernetesWorkload, replicas int32) error {
-	if strings.EqualFold(resource.Kind, "StatefulSet") {
-		return scaleStatefulSet(resource, replicas)
-	} else {
-		return fmt.Errorf("Resource kind %s is not implemented", resource.Kind)
-	}
-}
-
-func scaleStatefulSet(resource *KubernetesWorkload, replicas int32) error {
 	client, err := k8sClient.getClient()
 	if err != nil {
 		return err
 	}
-	statefulSets := client.AppsV1().StatefulSets(resource.Namespace)
-	scale, err := statefulSets.GetScale(resource.Name, metav1.GetOptions{})
+
+	var getScaleFunc func() (*autoscalingv1.Scale, error)
+	var doScaleFunc func(scale *autoscalingv1.Scale) error
+	if strings.EqualFold(resource.Kind, "StatefulSet") {
+		statefulsets := client.AppsV1().StatefulSets(resource.Namespace)
+		getScaleFunc = func() (*autoscalingv1.Scale, error) {
+			return statefulsets.GetScale(resource.Name, metav1.GetOptions{})
+		}
+		doScaleFunc = func(scale *autoscalingv1.Scale) error {
+			scale, err := statefulsets.UpdateScale(resource.Name, scale)
+			return err
+		}
+	} else {
+		return fmt.Errorf("Resource kind %s is not implemented", resource.Kind)
+	}
+
+	scale, err := getScaleFunc()
 	if err != nil {
 		return err
 	}
@@ -117,8 +125,7 @@ func scaleStatefulSet(resource *KubernetesWorkload, replicas int32) error {
 		return nil
 	}
 	scale.Spec.Replicas = replicas
-	//scale, err = statefulSets.UpdateScale(resource.Name, scale)
-	return err
+	return doScaleFunc(scale)
 }
 
 // GetEnvValue gets an environment variable value
@@ -126,7 +133,6 @@ func GetEnvValue(env corev1.EnvVar) (string, error) {
 	if env.Value != "" {
 		return env.Value, nil
 	}
-	// TODO implement ValueFrom
 	return "", fmt.Errorf("Error getting value for environment variable %s", env.Name)
 }
 

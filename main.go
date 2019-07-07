@@ -28,6 +28,8 @@ var (
 	resourceNamespace = flag.String("namespace", "", "The namespace of the StatefulSet.")
 	azpToken          = flag.String("token", "", "The Azure Devops token.")
 	azpURL            = flag.String("url", "", "The Azure Devops URL. https://dev.azure.com/AccountName")
+
+	lastScaleDown = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
 )
 
 func main() {
@@ -87,7 +89,7 @@ func main() {
 	// Verify there isn't a HorizontalPodAutoscaler
 	go helpers.VerifyNoHorizontalPodAutoscaler(verifyHPAChan, *resourceType, *resourceNamespace, *resourceName)
 	// Get all agent pools
-	go azdClient.ListPools(agentPoolsChan)
+	go azdClient.ListPoolsAsync(agentPoolsChan)
 
 	deployment := <-deploymentChan
 	if deployment.Err != nil {
@@ -138,11 +140,11 @@ agentPoolNameLoop:
 	}
 
 	getAgentsFunc := func(channel chan<- azuredevops.PoolAgentsResponse) {
-		azdClient.ListPoolAgents(channel, *agentPoolID)
+		azdClient.ListPoolAgentsAsync(channel, *agentPoolID)
 	}
 
 	getJobRequestsFunc := func(channel chan<- azuredevops.JobRequestsResponse) {
-		azdClient.ListJobRequests(channel, *agentPoolID)
+		azdClient.ListJobRequestsAsync(channel, *agentPoolID)
 	}
 
 	for {
@@ -178,8 +180,11 @@ func autoscale(getAgentsFunc func(channel chan<- azuredevops.PoolAgentsResponse)
 	jobsChan := make(chan azuredevops.JobRequestsResponse)
 	podsChan := make(chan helpers.Pods)
 
+	// Get all active agents
 	go getAgentsFunc(agentsChan)
+	// Get all queued jobs
 	go getJobRequestsFunc(jobsChan)
+	// Get all pods
 	go helpers.GetPods(podsChan, deployment)
 
 	agents := <-agentsChan
@@ -195,12 +200,12 @@ func autoscale(getAgentsFunc func(channel chan<- azuredevops.PoolAgentsResponse)
 		return pods.Err
 	}
 
+	// Get all pod names and statuses
 	podNames := make(helpers.StringSet)
 	numPods := int32(len(pods.Pods))
 	numRunningPods, numPendingPods := int32(0), int32(0)
 	for _, pod := range pods.Pods {
-		var void struct{}
-		podNames[pod.Name] = void
+		podNames.Add(pod.Name)
 		if pod.Status.Phase == corev1.PodRunning {
 			numRunningPods = numRunningPods + 1
 		} else if pod.Status.Phase == corev1.PodPending {
@@ -215,28 +220,25 @@ func autoscale(getAgentsFunc func(channel chan<- azuredevops.PoolAgentsResponse)
 	max32 := int32(*max)
 
 	// Get number of active agents
-	runningJobRequestIDs := make(map[int]struct{})
 	numActiveAgents := int32(0)
-	activeAgentNames := make(map[string]struct{})
+	activeAgentNames := make(helpers.StringSet)
 	for _, agent := range agents.Agents {
 		if strings.EqualFold(agent.Status, "online") {
 			podName := agent.SystemCapabilities["HOSTNAME"]
 			if podNames.Contains(podName) && agent.AssignedRequest != nil {
-				var void struct{}
 				numActiveAgents = numActiveAgents + 1
-				runningJobRequestIDs[agent.AssignedRequest.RequestID] = void
-				activeAgentNames[agent.Name] = void
+				activeAgentNames.Add(agent.Name)
 			}
 		}
 	}
 
+	// Determine the number of jobs that are queued
 	numQueuedJobs := int32(0)
 	for _, job := range jobs.Jobs {
 		if job.IsQueuedOrRunning() {
 			if job.ReservedAgent == nil && len(job.MatchedAgents) > 0 {
 				for _, agent := range job.MatchedAgents {
-					_, queuedForCluster := activeAgentNames[agent.Name]
-					if queuedForCluster {
+					if activeAgentNames.Contains(agent.Name) {
 						numQueuedJobs = numQueuedJobs + 1
 						break
 					}
@@ -252,19 +254,42 @@ func autoscale(getAgentsFunc func(channel chan<- azuredevops.PoolAgentsResponse)
 		return nil
 	}
 
-	// TODO use all these variables to calculate needed pods
-	replicasToSet := min32
-	if numActiveAgents > min32 {
-		replicasToSet = numActiveAgents + min32
-		if replicasToSet > max32 {
-			// Because there's no built-in Max() function that takes ints...
-			if numActiveAgents > max32 {
-				replicasToSet = numActiveAgents
-			} else {
-				replicasToSet = max32
-			}
+	// Determine delta for how much to scale by
+	scale := int32(0)
+	if numActiveAgents+min32 > numPods {
+		// Scale up
+		scale = numActiveAgents + min32 - numPods
+		if numQueuedJobs > min32 {
+			scale = scale + numQueuedJobs - min32
 		}
+	} else if numActiveAgents+min32+numQueuedJobs < numPods {
+		scale = numPods - numActiveAgents - min32 - numQueuedJobs
 	}
 
-	return helpers.Scale(deployment, replicasToSet)
+	// Apply scaling limits and scale down limits
+	podsToScaleTo := numPods
+	if scale > 0 {
+		podsToScaleTo = helpers.MinInt32(max32, numPods+scale)
+	} else if scale < 0 {
+		podsToScaleTo = helpers.MaxInt32(min32, numPods+scale)
+		scaleDownMax32 := int32(*scaleDownMax)
+
+		now := time.Now()
+		if now.Add(*scaleDownDelay).After(lastScaleDown) {
+			helpers.Logger.Debugf("Not scaling down %s from %d to %d pods - cannot scale down until %s", deployment.FriendlyName, numPods, podsToScaleTo, now.Add(*scaleDownDelay).String())
+		} else if numPods-podsToScaleTo > scaleDownMax32 {
+			helpers.Logger.Debugf("Capping the scale down from %d to %d pods", podsToScaleTo, numPods-scaleDownMax32)
+			podsToScaleTo = numPods - scaleDownMax32
+		}
+	} else {
+		helpers.Logger.Tracef("Not scaling %s from %d pods", deployment.FriendlyName, numPods)
+		return nil
+	}
+
+	helpers.Logger.Infof("Scaling %s from %d to %d pods", deployment.FriendlyName, numPods, podsToScaleTo)
+	err := helpers.Scale(deployment, podsToScaleTo)
+	if err == nil && scale < 0 {
+		lastScaleDown = time.Now()
+	}
+	return err
 }
