@@ -11,9 +11,6 @@ const getPoolsEndpoint = "/_apis/distributedtask/pools?poolName=%s"
 // Parameter 1 is the Pool ID
 const getPoolAgentsEndpoint = "/_apis/distributedtask/pools/%d/agents?includeCapabilities=true&includeAssignedRequest=true&includeLastCompletedRequest=true"
 
-// Parameter 1 is the Pool ID, Parameter 2 is the Agent ID
-const getAgentEndpoint = "/_apis/distributedtask/pools/%d/agents/%d?includeCapabilities=true&includeAssignedRequest=true&includeLastCompletedRequest=true"
-
 const getPoolJobRequestsEndpoint = "/_apis/distributedtask/pools/%d/jobrequests"
 
 const acceptHeader = "application/json;api-version=5.0-preview.1"
@@ -23,7 +20,6 @@ type Client interface {
 	ListPools() ([]PoolDetails, error)
 	ListPoolsByName(poolName string) ([]PoolDetails, error)
 	ListPoolAgents(poolID int) ([]AgentDetails, error)
-	GetPoolAgent(poolID int, agentID int) (*AgentDetails, error)
 	ListJobRequests(poolID int) ([]JobRequest, error)
 }
 
@@ -92,18 +88,6 @@ func (c ClientImpl) ListPoolAgents(poolID int) ([]AgentDetails, error) {
 		return nil, err
 	} else {
 		return response.Value, nil
-	}
-}
-
-// GetPoolAgent retrieves a single agent in a pool
-func (c ClientImpl) GetPoolAgent(poolID int, agentID int) (*AgentDetails, error) {
-	response := new(AgentDetails)
-	endpoint := fmt.Sprintf(getAgentEndpoint, poolID, agentID)
-	err := c.executeGETRequest(endpoint, response)
-	if err != nil {
-		return nil, err
-	} else {
-		return response, nil
 	}
 }
 

@@ -9,7 +9,6 @@ type ClientAsync interface {
 	ListPoolsAsync(channel chan<- PoolDetailsResponse)
 	ListPoolsByNameAsync(channel chan<- PoolDetailsResponse, poolName string)
 	ListPoolAgentsAsync(channel chan<- PoolAgentsResponse, poolID int)
-	GetPoolAgentAsync(channel chan<- PoolAgentResponse, poolID int, agentID int)
 	ListJobRequestsAsync(channel chan<- JobRequestsResponse, poolID int)
 }
 
@@ -59,18 +58,6 @@ type PoolAgentsResponse struct {
 func (c ClientAsyncImpl) ListPoolAgentsAsync(channel chan<- PoolAgentsResponse, poolID int) {
 	response, err := c.client.ListPoolAgents(poolID)
 	channel <- PoolAgentsResponse{response, err}
-}
-
-// PoolAgentResponse is a wrapper for AgentDetails to allow also returning an error in channels
-type PoolAgentResponse struct {
-	Agent *AgentDetails
-	Err   error
-}
-
-// GetPoolAgentAsync retrieves a single agent in a pool
-func (c ClientAsyncImpl) GetPoolAgentAsync(channel chan<- PoolAgentResponse, poolID int, agentID int) {
-	response, err := c.client.GetPoolAgent(poolID, agentID)
-	channel <- PoolAgentResponse{response, err}
 }
 
 // JobRequestsResponse is a wrapper for JobRequests to allow also returning an error in channels

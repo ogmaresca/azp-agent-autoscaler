@@ -4,6 +4,9 @@ go-build:
 go-run:
 	../bin/azp-agent-autoscaler --name azp-agent --namespace default --token=${AZURE_DEVOPS_TOKEN} --url=${AZURE_DEVOPS_URL} --log-level=Trace
 
+go-test:
+	go test github.com/ggmaresca/azp-agent-autoscaler/pkg/tests
+
 docker-build:
 	docker build -t azp-agent-autoscaler:dev .
 

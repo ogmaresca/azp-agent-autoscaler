@@ -129,11 +129,15 @@ func getActiveAgentNames(agents []azuredevops.AgentDetails, podNames collections
 func getNumQueuedJobs(jobs []azuredevops.JobRequest, activeAgentNames collections.StringSet) int32 {
 	numQueuedJobs := int32(0)
 	for _, job := range jobs {
-		if job.IsQueuedOrRunning() && job.ReservedAgent == nil && len(job.MatchedAgents) > 0 {
-			for _, agent := range job.MatchedAgents {
-				if activeAgentNames.Contains(agent.Name) {
-					numQueuedJobs = numQueuedJobs + 1
-					break
+		if job.IsQueuedOrRunning() && job.ReservedAgent == nil {
+			if job.MatchesAllAgentsInPool {
+				numQueuedJobs = numQueuedJobs + 1
+			} else if len(job.MatchedAgents) > 0 {
+				for _, agent := range job.MatchedAgents {
+					if activeAgentNames.Contains(agent.Name) {
+						numQueuedJobs = numQueuedJobs + 1
+						break
+					}
 				}
 			}
 		}
