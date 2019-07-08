@@ -1,4 +1,4 @@
-package scaling
+package args
 
 import (
 	"flag"
@@ -53,6 +53,7 @@ type KubernetesArgs struct {
 	Namespace string
 }
 
+// FriendlyName returns the name used to reference the resource in the CLI, ex: deployment/myapp
 func (a KubernetesArgs) FriendlyName() string {
 	return fmt.Sprintf("%s/%s", strings.ToLower(a.Type), a.Name)
 }

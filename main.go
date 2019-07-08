@@ -4,6 +4,7 @@ import (
 	"flag"
 	"time"
 
+	"github.com/ggmaresca/azp-agent-autoscaler/pkg/args"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/azuredevops"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/kubernetes"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/logging"
@@ -21,24 +22,28 @@ func main() {
 	// Parse arguments
 	flag.Parse()
 
-	if err := scaling.ValidateArgs(); err != nil {
+	if err := args.ValidateArgs(); err != nil {
 		panic(err.Error())
 	}
-	args := scaling.ArgsFromFlags()
+	args := args.ArgsFromFlags()
 
 	logging.Logger.SetLevel(args.Logging.Level)
 
 	// Initialize Azure Devops client
 	azdClient := azuredevops.MakeClient(args.AZD.URL, args.AZD.Token)
+	k8sClient, err := kubernetes.MakeClient()
+	if err != nil {
+		panic(err.Error())
+	}
 
 	deploymentChan := make(chan kubernetes.WorkloadReturn)
 	verifyHPAChan := make(chan error)
 	agentPoolsChan := make(chan azuredevops.PoolDetailsResponse)
 
 	// Get AZP agent workload
-	go kubernetes.GetK8sWorkload(deploymentChan, args.Kubernetes.Type, args.Kubernetes.Namespace, args.Kubernetes.Name)
+	go k8sClient.GetWorkloadAsync(deploymentChan, args.Kubernetes)
 	// Verify there isn't a HorizontalPodAutoscaler
-	go kubernetes.VerifyNoHorizontalPodAutoscaler(verifyHPAChan, args.Kubernetes.Type, args.Kubernetes.Namespace, args.Kubernetes.Name)
+	go k8sClient.VerifyNoHorizontalPodAutoscalerAsync(verifyHPAChan, args.Kubernetes)
 	// Get all agent pools
 	go azdClient.ListPoolsAsync(agentPoolsChan)
 
@@ -57,49 +62,28 @@ func main() {
 	}
 
 	// Discover the pool name from the environment variables
-	var agentPoolName *string
-agentPoolNameLoop:
-	for _, container := range deployment.Resource.PodTemplateSpec.Spec.Containers {
-		for _, env := range container.Env {
-			if env.Name == poolNameEnvVar {
-				envValue, err := kubernetes.GetEnvValue(env)
-				if err != nil {
-					logging.Logger.Panicf("Error getting Agent Pool - could not retrieve environment variable %s from statefulset/%s: %s", poolNameEnvVar, deployment.Resource.Name, err.Error())
-				}
-				agentPoolName = &envValue
-				break agentPoolNameLoop
-			}
-		}
-	}
-	if agentPoolName == nil {
-		logging.Logger.Panicf("Could not retrieve environment variable %s from statefulset/%s", poolNameEnvVar, deployment.Resource.Name)
+	agentPoolName, err := k8sClient.Sync().GetEnvValue(deployment.Resource.PodTemplateSpec.Spec, deployment.Resource.Namespace, poolNameEnvVar)
+	if err != nil {
+		logging.Logger.Panicf("Could not retrieve environment variable %s from %s: %s", poolNameEnvVar, deployment.Resource.FriendlyName, err)
 	} else {
-		logging.Logger.Debugf("Found agent pool %s from %s", *agentPoolName, deployment.Resource.FriendlyName)
+		logging.Logger.Debugf("Found agent pool %s from %s", agentPoolName, deployment.Resource.FriendlyName)
 	}
 
 	var agentPoolID *int
 	for _, agentPool := range agentPools.Pools {
-		if !agentPool.IsHosted && agentPool.Name == *agentPoolName {
+		if !agentPool.IsHosted && agentPool.Name == agentPoolName {
 			agentPoolID = &agentPool.ID
 			break
 		}
 	}
 	if agentPoolID == nil {
-		logging.Logger.Panicf("Error - could not find an agent pool with name %s", *agentPoolName)
+		logging.Logger.Panicf("Error - could not find an agent pool with name %s", agentPoolName)
 	} else {
-		logging.Logger.Debugf("Agent pool %s has ID %d", *agentPoolName, *agentPoolID)
-	}
-
-	getAgentsFunc := func(channel chan<- azuredevops.PoolAgentsResponse) {
-		azdClient.ListPoolAgentsAsync(channel, *agentPoolID)
-	}
-
-	getJobRequestsFunc := func(channel chan<- azuredevops.JobRequestsResponse) {
-		azdClient.ListJobRequestsAsync(channel, *agentPoolID)
+		logging.Logger.Debugf("Agent pool %s has ID %d", agentPoolName, *agentPoolID)
 	}
 
 	for {
-		err := scaling.Autoscale(getAgentsFunc, getJobRequestsFunc, deployment.Resource, args)
+		err := scaling.Autoscale(azdClient, *agentPoolID, k8sClient, deployment.Resource, args)
 		if err != nil {
 			switch t := err.(type) {
 			case azuredevops.HTTPError:

@@ -27,14 +27,8 @@ type Workload struct {
 	PodTemplateSpec *corev1.PodTemplateSpec
 }
 
-// WorkloadReturn is used to fix the issue with channels not supporting pair return values
-type WorkloadReturn struct {
-	Resource *Workload
-	Err      error
-}
-
 // GetWorkload creates a KubernetesWorkload from a StatefulSet
-func GetWorkload(resource *appsv1.StatefulSet) WorkloadReturn {
+func GetWorkload(resource *appsv1.StatefulSet) (*Workload, error) {
 	copy := Workload{}
 	err := copier.Copy(&copy, resource)
 
@@ -48,10 +42,5 @@ func GetWorkload(resource *appsv1.StatefulSet) WorkloadReturn {
 
 	copy.PodTemplateSpec = &resource.Spec.Template
 
-	return GetWorkloadReturn(&copy, err)
-}
-
-// GetWorkloadReturn returns a KubernetesWorkloadReturn
-func GetWorkloadReturn(resource *Workload, err error) WorkloadReturn {
-	return WorkloadReturn{resource, err}
+	return &copy, err
 }

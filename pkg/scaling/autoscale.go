@@ -6,6 +6,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/ggmaresca/azp-agent-autoscaler/pkg/args"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/azuredevops"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/collections"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/kubernetes"
@@ -18,17 +19,17 @@ var (
 )
 
 // Autoscale the agent deployment
-func Autoscale(getAgentsFunc func(channel chan<- azuredevops.PoolAgentsResponse), getJobRequestsFunc func(channel chan<- azuredevops.JobRequestsResponse), deployment *kubernetes.Workload, args Args) error {
+func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kubernetes.ClientAsync, deployment *kubernetes.Workload, args args.Args) error {
 	agentsChan := make(chan azuredevops.PoolAgentsResponse)
 	jobsChan := make(chan azuredevops.JobRequestsResponse)
 	podsChan := make(chan kubernetes.Pods)
 
 	// Get all active agents
-	go getAgentsFunc(agentsChan)
+	go azdClient.ListPoolAgentsAsync(agentsChan, agentPoolID)
 	// Get all queued jobs
-	go getJobRequestsFunc(jobsChan)
+	go azdClient.ListJobRequestsAsync(jobsChan, agentPoolID)
 	// Get all pods
-	go kubernetes.GetPods(podsChan, deployment)
+	go k8sClient.GetPodsAsync(podsChan, deployment)
 
 	agents := <-agentsChan
 	if agents.Err != nil {
@@ -105,7 +106,7 @@ func Autoscale(getAgentsFunc func(channel chan<- azuredevops.PoolAgentsResponse)
 	}
 
 	logging.Logger.Infof("Scaling %s from %d to %d pods", deployment.FriendlyName, numPods, podsToScaleTo)
-	err := kubernetes.Scale(deployment, podsToScaleTo)
+	err := k8sClient.Sync().Scale(deployment, podsToScaleTo)
 	if err == nil && scale < 0 {
 		lastScaleDown = time.Now()
 	}
