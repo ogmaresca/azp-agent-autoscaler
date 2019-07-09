@@ -53,5 +53,5 @@ func (j *JobRequest) IsQueuedOrRunning() bool {
 	return !strings.EqualFold(j.Result, string(JobResultFailed)) &&
 		!strings.EqualFold(j.Result, string(JobResultCanceled)) &&
 		!strings.EqualFold(j.Result, string(JobResultSucceeded)) &&
-		len(j.MatchedAgents) > 0
+		(len(j.MatchedAgents) > 0 || j.Result == "")
 }

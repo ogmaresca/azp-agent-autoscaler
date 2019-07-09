@@ -76,41 +76,52 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 
 	// Determine delta for how much to scale by
 	scale := int32(0)
-	if numActiveAgents+args.Min > numPods {
+	if numActiveAgents+numQueuedJobs+args.Min > numPods {
 		// Scale up
-		scale = numActiveAgents + args.Min - numPods
-		if numQueuedJobs > args.Min {
-			scale = scale + numQueuedJobs - args.Min
-		}
+		scale = numActiveAgents + numQueuedJobs + args.Min - numPods
 	} else if numActiveAgents+args.Min+numQueuedJobs < numPods {
-		scale = numPods - numActiveAgents - args.Min - numQueuedJobs
+		// Scale down
+		scale = -numPods + numActiveAgents + args.Min + numQueuedJobs
 	}
 
 	// Apply scaling limits and scale down limits
 	podsToScaleTo := numPods
 	if scale > 0 {
-		podsToScaleTo = math.MinInt32(args.Max, numPods+scale)
+		podsToScaleTo = math.MaxInt32(numActiveAgents, math.MinInt32(args.Max, numPods+scale))
 	} else if scale < 0 {
-		podsToScaleTo = math.MaxInt32(args.Min, numPods+scale)
+		podsToScaleTo = math.MaxInt32(numActiveAgents, math.MinInt32(args.Max, math.MaxInt32(args.Min, numPods+scale)))
 
 		now := time.Now()
-		if now.Add(args.ScaleDown.Delay).After(lastScaleDown) {
-			logging.Logger.Debugf("Not scaling down %s from %d to %d pods - cannot scale down until %s", deployment.FriendlyName, numPods, podsToScaleTo, now.Add(args.ScaleDown.Delay).String())
+		if now.Before(lastScaleDown.Add(args.ScaleDown.Delay)) {
+			logging.Logger.Debugf("Not scaling down %s from %d to %d pods - cannot scale down until %s", deployment.FriendlyName, numPods, podsToScaleTo, lastScaleDown.Add(args.ScaleDown.Delay).String())
 		} else if numPods-podsToScaleTo > args.ScaleDown.Max {
 			logging.Logger.Debugf("Capping the scale down from %d to %d pods", podsToScaleTo, numPods-args.ScaleDown.Max)
 			podsToScaleTo = numPods - args.ScaleDown.Max
+		}
+	} else if podsToScaleTo > args.Max {
+		if numActiveAgents > args.Max {
+			podsToScaleTo = numActiveAgents
+			logging.Logger.Warningf("There are %d pods over the max of %d - limiting the scale down to %d active agents", numPods, args.Max, numActiveAgents)
+		} else {
+			podsToScaleTo = args.Max
+			logging.Logger.Warningf("There are %d pods over the max of %d - scaling down to meet the max", numPods, args.Max)
 		}
 	} else {
 		logging.Logger.Tracef("Not scaling %s from %d pods", deployment.FriendlyName, numPods)
 		return nil
 	}
 
-	logging.Logger.Infof("Scaling %s from %d to %d pods", deployment.FriendlyName, numPods, podsToScaleTo)
-	err := k8sClient.Sync().Scale(deployment, podsToScaleTo)
-	if err == nil && scale < 0 {
-		lastScaleDown = time.Now()
+	if numPods != podsToScaleTo {
+		logging.Logger.Infof("Scaling %s from %d to %d pods", deployment.FriendlyName, numPods, podsToScaleTo)
+		err := k8sClient.Sync().Scale(deployment, podsToScaleTo)
+		if err == nil && scale < 0 {
+			lastScaleDown = time.Now()
+		}
+		return err
 	}
-	return err
+
+	logging.Logger.Debugf("Not scaling from %d pods", numPods)
+	return nil
 }
 
 func getActiveAgentNames(agents []azuredevops.AgentDetails, podNames collections.StringSet) collections.StringSet {

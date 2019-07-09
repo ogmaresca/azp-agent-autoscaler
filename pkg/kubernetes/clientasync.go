@@ -37,7 +37,12 @@ func MakeClient() (ClientAsync, error) {
 	return nil, err
 }
 
-// Get the synchronous client
+// MakeFromClient returns a ClientAsync from the given sync client
+func MakeFromClient(syncClient Client) ClientAsync {
+	return ClientAsyncImpl{syncClient}
+}
+
+// Sync returns the synchronous client
 func (c ClientAsyncImpl) Sync() Client {
 	return c.syncClient
 }

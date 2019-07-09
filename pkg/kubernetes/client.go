@@ -120,16 +120,7 @@ func (c ClientImpl) Scale(resource *Workload, replicas int32) error {
 
 // GetEnvValue gets an environment variable value from a pod
 func (c ClientImpl) GetEnvValue(podSpec corev1.PodSpec, namespace string, envName string) (string, error) {
-	var env *corev1.EnvVar
-envValueLoop:
-	for _, container := range podSpec.Containers {
-		for _, containerEnv := range container.Env {
-			if containerEnv.Name == envName {
-				env = &containerEnv
-				break envValueLoop
-			}
-		}
-	}
+	env := GetEnvVar(podSpec, envName)
 	if env == nil {
 		return "", fmt.Errorf("Could not retrieve environment variable %s", envName)
 	}
