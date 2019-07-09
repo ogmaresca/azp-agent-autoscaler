@@ -15,3 +15,6 @@ docker-run:
 
 docker-push:
 	sh docker-push.sh
+
+docker-clean:
+	docker rmi azp-agent-autoscaler:dev

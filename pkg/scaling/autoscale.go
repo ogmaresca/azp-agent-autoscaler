@@ -51,7 +51,18 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 	for _, pod := range pods.Pods {
 		podNames.Add(pod.Name)
 		if pod.Status.Phase == corev1.PodRunning {
-			numRunningPods = numRunningPods + 1
+			allContainersRunning := true
+			for _, containerStatus := range pod.Status.ContainerStatuses {
+				if containerStatus.State.Running == nil || containerStatus.State.Terminated != nil {
+					allContainersRunning = false
+					break
+				}
+			}
+			if allContainersRunning {
+				numRunningPods = numRunningPods + 1
+			} else {
+				numPendingPods = numPendingPods + 1
+			}
 		} else if pod.Status.Phase == corev1.PodPending {
 			numPendingPods = numPendingPods + 1
 		}
