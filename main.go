@@ -2,10 +2,13 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/args"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/azuredevops"
+	"github.com/ggmaresca/azp-agent-autoscaler/pkg/health"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/kubernetes"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/logging"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/math"
@@ -46,7 +49,15 @@ func main() {
 	go k8sClient.VerifyNoHorizontalPodAutoscalerAsync(verifyHPAChan, args.Kubernetes)
 	// Get all agent pools
 	go azdClient.ListPoolsAsync(agentPoolsChan)
+	go func() {
+		http.Handle("/healthz", health.LivenessCheck{})
+		err := http.ListenAndServe(fmt.Sprintf(":%d", args.Health.Port), nil)
+		if err != nil {
+			logging.Logger.Panicf("Error serving health checks: %s", err.Error())
+		}
+	}()
 
+	// Retrieve channel results
 	deployment := <-deploymentChan
 	if deployment.Err != nil {
 		logging.Logger.Panicf("Error retrieving %s in namespace %s: %s", args.Kubernetes.FriendlyName(), args.Kubernetes.Namespace, deployment.Err.Error())

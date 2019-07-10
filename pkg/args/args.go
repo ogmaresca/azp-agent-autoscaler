@@ -21,6 +21,7 @@ var (
 	resourceNamespace = flag.String("namespace", "", "The namespace of the StatefulSet.")
 	azpToken          = flag.String("token", "", "The Azure Devops token.")
 	azpURL            = flag.String("url", "", "The Azure Devops URL. https://dev.azure.com/AccountName")
+	port              = flag.Int("port", 10101, "The port to serve health checks.")
 )
 
 // Args holds all of the program arguments
@@ -33,6 +34,7 @@ type Args struct {
 	Logging    LoggingArgs
 	Kubernetes KubernetesArgs
 	AZD        AzureDevopsArgs
+	Health     HealthArgs
 }
 
 // ScaleDownArgs holds all of the scale-down related args
@@ -51,6 +53,11 @@ type KubernetesArgs struct {
 	Type      string
 	Name      string
 	Namespace string
+}
+
+// HealthArgs holds all of the healthcheck related args
+type HealthArgs struct {
+	Port int
 }
 
 // FriendlyName returns the name used to reference the resource in the CLI, ex: deployment/myapp
@@ -87,6 +94,9 @@ func ArgsFromFlags() Args {
 		AZD: AzureDevopsArgs{
 			Token: *azpToken,
 			URL:   *azpURL,
+		},
+		Health: HealthArgs{
+			Port: *port,
 		},
 	}
 }
@@ -127,6 +137,9 @@ func ValidateArgs() error {
 	}
 	if *azpURL == "" {
 		validationErrors = append(validationErrors, "The Azure Devops URL is required.")
+	}
+	if *port < 0 {
+		validationErrors = append(validationErrors, "The port must be greater than 0.")
 	}
 	if len(validationErrors) > 0 {
 		return fmt.Errorf("Error(s) with arguments:\n%s", strings.Join(validationErrors, "\n"))
