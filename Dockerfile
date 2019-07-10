@@ -28,3 +28,4 @@ USER azp-agent-autoscaler
 WORKDIR /home/azp-agent-autoscaler
 
 ENTRYPOINT ["/bin/azp-agent-autoscaler"]
+CMD []
