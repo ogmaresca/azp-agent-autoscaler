@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "azp-agent-autoscaler.fullname" . }}
+  labels:
+    {{- include "azp-agent-autoscaler.labels" . | nindent 4 }}
+    {{- include "azp-agent-autoscaler.stringDict" .Values.labels | nindent 4 }}
+  {{- if .Values.annotations }}
+  annotations:
+    {{- include "azp-agent-autoscaler.stringDict" .Values.annotations | nindent 4 }}
+  {{- end }}
+spec:
+  minReadySeconds: {{ .Values.minReadySeconds }}
+  replicas: 1
+  revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
+  {{- with .Values.strategy }}
+  strategy:
+    {{- . | toYaml | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "azp-agent-autoscaler.selector" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "azp-agent-autoscaler.labels" . | nindent 8 }}
+        {{- include "azp-agent-autoscaler.stringDict" .Values.podLabels | nindent 8 }}
+      {{- if .Values.podAnnotations }}
+      annotations:
+        {{- include "azp-agent-autoscaler.stringDict" .Values.podAnnotations | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- if .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- .Values.image.pullSecrets | toYaml | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "azp-agent-autoscaler.fullname" . }}
+      containers:
+      - name: {{ .Chart.Name }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: AZP_TOKEN
+          valueFrom:
+            secretKeyRef:
+              {{- if and (not .Values.azp.existingSecret) (not .Values.azp.existingSecretKey) }}
+              name: {{ include "azp-agent-autoscaler.fullname" . }}
+              key: azp-token
+              {{- else }}
+              name: {{ .Values.azp.existingSecret | quote }}
+              key: {{ .Values.azp.existingSecretKey | quote }}
+              {{- end }}
+        args:
+        - '--log-level={{ .Values.logLevel }}'
+        - '--min={{ .Values.agents.min }}'
+        - '--max={{ .Values.agents.max }}'
+        - '--rate={{ .Values.rate }}'
+        - '--scale-down={{ .Values.scaleDown.delay }}'
+        - '--scale-down-max={{ .Values.scaleDown.max }}'
+        - '--type={{ .Values.agents.kind }}'
+        - '--name={{ .Values.agents.name | required "The agent StatefulSet name is required!" }}'
+        - '--namespace={{ .Values.agents.namespace | default .Release.Namespace }}'
+        - '--token=$(AZP_TOKEN)'
+        - '--url={{ .Values.azp.url | required "The Azure Pipeline URL is required!" }}'
+        - '--port=10101'
+        ports:
+        - containerPort: 10101
+          name: health
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: health
+            scheme: HTTP
+          failureThreshold: {{ .Values.health.liveness.failureThreshold }}
+          initialDelaySeconds: {{ .Values.health.liveness.initialDelaySeconds }}
+          periodSeconds: {{ .Values.health.liveness.periodSeconds }}
+          successThreshold: {{ .Values.health.liveness.successThreshold }}
+          timeoutSeconds: {{ .Values.health.liveness.timeoutSeconds }}
+        {{- with .Values.azp.resources }}
+        resources:
+          {{- . | toYaml | nindent 10 }}
+        {{- end }}
+        {{- if .Values.lifecycle }}
+        lifecycle:
+          {{- .Values.lifecycle | toYaml | nindent 10 }}
+        {{- end }}
+      
+      {{- if .Values.sidecars }}
+        {{- .Values.sidecars | toYaml | nindent 6 }}
+      {{- end }}
+      
+      {{- if .Values.initContainers }}
+      initContainers:
+        {{- .Values.initContainers | toYaml | nindent 8 }}
+      {{- end }}
+      
+      {{- if .Values.activeDeadlineSeconds }}
+      activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
+      {{- end }}
+      {{- if .Values.dnsPolicy }}
+      dnsPolicy: {{ .Values.dnsPolicy }}
+      {{- end }}
+      {{ if .Values.dnsConfig }}
+      dnsConfig:
+        {{- .Values.dnsConfig | toYaml | nindent 8 }}
+      {{- end }}
+      restartPolicy: {{ .Values.restartPolicy }}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+        {{- .Values.nodeSelector | toYaml | nindent 8 }}
+      {{- end }}
+      {{- if .Values.affinity }}
+      affinity:
+        {{- .Values.affinity | toYaml | nindent 8 }}
+      {{- end }}
+      {{- if .Values.tolerations }}
+      tolerations:
+        {{- .Values.tolerations | toYaml | nindent 8 }}
+      {{- end }}
+      {{- if .Values.securityContext }}
+      securityContext:
+        {{- .Values.securityContext | toYaml | nindent 8 }}
+      {{- end }}
+      hostNetwork: {{ .Values.hostNetwork }}
+      {{- if .Values.priority }}
+      priority: {{ .Value.priority }}
+      {{- end }}
+      {{- if .Values.priorityClassName }}
+      priorityClassName: {{ .Value.priorityClassName | quote }}
+      {{- end }}
+      {{- if .Values.priority }}
+      priority: {{ .Values.priority }}
+      {{- end }}
+      {{- if .Values.runtimeClassName }}
+      runtimeClassName: {{ .Value.runtimeClassName | quote }}
+      {{- end }}
+      {{- if .Values.schedulerName }}
+      schedulerName: {{ .Value.schedulerName | quote }}
+      {{- end }}

@@ -1,0 +1,96 @@
+# Default values for azp-agent-autoscaler.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+nameOverride: ""
+fullnameOverride: ""
+
+minReadySeconds: 0
+revisionHistoryLimit: 10
+strategy:
+  type: Recreate
+
+image:
+  repository: docker.io/gmaresca/azp-agent-autoscaler
+  tag: 1.0.3
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# trace, debug, info, warn, error, fatal, panic
+logLevel: info
+rate: 10s
+
+scaleDown:
+  max: 1
+  delay: 10s
+
+agents:
+  kind: StatefulSet
+  name: ''
+  # Defaults to Release.Namespace
+  namespace: ''
+  min: 1
+  max: 100
+
+azp:
+  # https://dev.azure.com/azureAccountName
+  url: ''
+  # Needs Agent Pools (Read) permission
+  token: ''
+  # If you already have a secret with the token
+  existingSecret: ''
+  existingSecretKey: ''
+
+resources:
+  requests:
+    cpu: 0.05
+    memory: 16Mi
+  limits:
+    cpu: 0.1
+    memory: 32Mi
+
+health:
+  liveness:
+    failureThreshold: 3
+    initialDelaySeconds: 1
+    periodSeconds: 10
+    successThreshold: 1
+    timeoutSeconds: 1
+
+labels: {}
+annotations: {}
+
+podLabels: {}
+podAnnotations: {}
+
+pdb:
+  enabled: false
+  minAvailable: 50%
+  #maxUnavailable: 50%
+
+rbac:
+  # azp-agent-autoscaler needs to get the pool name from the agent's environment variables
+  # If the AZP_POOL environment variable comes from a configmap or a secret, enable this
+  getConfigmaps: false
+  getSecrets: false
+
+#dnsPolicy: ClusterFirst
+dnsConfig: {}
+
+restartPolicy: Always
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+securityContext: {}
+
+hostNetwork: false
+
+initContainers: []
+
+lifecycle: {}
+
+sidecars: []

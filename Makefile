@@ -18,3 +18,16 @@ docker-push:
 
 docker-clean:
 	docker rmi azp-agent-autoscaler:dev
+
+helm-lint:
+	helm lint charts/azp-agent-autoscaler
+
+helm-template:
+	helm template charts/azp-agent-autoscaler --set azp.url=https://dev.azure.com/test,azp.token=abc123def456ghi789jkl
+
+helm-install:
+	helm upgrade --debug --install azp-agent-autoscaler charts/azp-agent-autoscaler --set azp.url=${AZURE_DEVOPS_URL},azp.existingSecret=azp-agent,azp.existingSecretKey=azp-token,agents.name=azp-agent,logLevel=trace
+
+helm-package:
+	helm package charts/azp-agent-autoscaler -d charts && \
+	helm repo index --merge charts/index.yaml charts

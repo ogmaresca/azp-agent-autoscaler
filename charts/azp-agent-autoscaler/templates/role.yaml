@@ -1,0 +1,30 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "azp-agent-autoscaler.fullname" . | quote }}
+  namespace: {{ .Values.agents.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "azp-agent-autoscaler.labels" . | nindent 4 }}
+rules:
+- apiGroups: ["apps"]
+  resources: ["statefulsets"]
+  verbs: ["get"]
+- apiGroups: ["apps"]
+  resources: ["statefulsets/scale"]
+  verbs: ["get", "update"]
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["list"]
+- apiGroups: ["autoscaling"]
+  resources: ["horizontalpodautoscalers"]
+  verbs: ["list"]
+{{ if .Values.rbac.getConfigmaps }}
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get"]
+{{ end }}
+{{ if .Values.rbac.getSecrets }}
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+{{ end }}
