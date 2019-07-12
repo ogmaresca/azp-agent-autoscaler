@@ -1,3 +1,4 @@
+{{ if .Values.rbac.create }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -18,13 +19,14 @@ rules:
 - apiGroups: ["autoscaling"]
   resources: ["horizontalpodautoscalers"]
   verbs: ["list"]
-{{ if .Values.rbac.getConfigmaps }}
+ {{ if .Values.rbac.getConfigmaps }}
 - apiGroups: [""]
   resources: ["configmaps"]
   verbs: ["get"]
-{{ end }}
-{{ if .Values.rbac.getSecrets }}
+ {{ end }}
+ {{ if .Values.rbac.getSecrets }}
 - apiGroups: [""]
   resources: ["secrets"]
   verbs: ["get"]
+ {{ end }}
 {{ end }}

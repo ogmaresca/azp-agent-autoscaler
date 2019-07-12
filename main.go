@@ -17,10 +17,6 @@ import (
 
 const poolNameEnvVar = "AZP_POOL"
 
-var (
-	lastScaleDown = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
-)
-
 func main() {
 	// Parse arguments
 	flag.Parse()

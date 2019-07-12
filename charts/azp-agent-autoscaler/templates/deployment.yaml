@@ -13,7 +13,7 @@ spec:
   minReadySeconds: {{ .Values.minReadySeconds }}
   replicas: 1
   revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
-  {{- with .Values.strategy }}
+  {{- with .Values.updateStrategy }}
   strategy:
     {{- . | toYaml | nindent 4 }}
   {{- end }}
@@ -34,7 +34,7 @@ spec:
       imagePullSecrets:
         {{- .Values.image.pullSecrets | toYaml | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "azp-agent-autoscaler.fullname" . }}
+      serviceAccountName: {{ include "azp-agent-autoscaler.serviceAccountName" . }}
       containers:
       - name: {{ .Chart.Name }}
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -52,11 +52,11 @@ spec:
               {{- end }}
         args:
         - '--log-level={{ .Values.logLevel }}'
-        - '--min={{ .Values.agents.min }}'
-        - '--max={{ .Values.agents.max }}'
+        - '--min={{ .Values.min }}'
+        - '--max={{ .Values.max }}'
         - '--rate={{ .Values.rate }}'
-        - '--scale-down={{ .Values.scaleDown.delay }}'
-        - '--scale-down-max={{ .Values.scaleDown.max }}'
+        - '--scale-down={{ .Values.scaleDownDelay }}'
+        - '--scale-down-max={{ .Values.scaleDownMax }}'
         - '--type={{ .Values.agents.kind }}'
         - '--name={{ .Values.agents.name | required "The agent StatefulSet name is required!" }}'
         - '--namespace={{ .Values.agents.namespace | default .Release.Namespace }}'
@@ -72,11 +72,11 @@ spec:
             path: /healthz
             port: health
             scheme: HTTP
-          failureThreshold: {{ .Values.health.liveness.failureThreshold }}
-          initialDelaySeconds: {{ .Values.health.liveness.initialDelaySeconds }}
-          periodSeconds: {{ .Values.health.liveness.periodSeconds }}
-          successThreshold: {{ .Values.health.liveness.successThreshold }}
-          timeoutSeconds: {{ .Values.health.liveness.timeoutSeconds }}
+          failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+          successThreshold: {{ .Values.livenessProbe.successThreshold }}
+          timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
         {{- with .Values.azp.resources }}
         resources:
           {{- . | toYaml | nindent 10 }}

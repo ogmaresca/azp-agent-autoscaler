@@ -1,3 +1,4 @@
+{{ if .Values.rbac.create }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
@@ -11,4 +12,6 @@ roleRef:
   namespace: {{ .Values.agents.namespace | default .Release.Namespace }}
 subjects:
 - kind: ServiceAccount
-  name: {{ include "azp-agent-autoscaler.fullname" . | quote }}
+  name: {{ include "azp-agent-autoscaler.serviceAccountName" . | quote }}
+  namespace: {{ .Release.Namespace }}
+{{ end }}

@@ -47,7 +47,7 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 	// Get all pod names and statuses
 	podNames := make(collections.StringSet)
 	numPods := int32(len(pods.Pods))
-	numRunningPods, numPendingPods := int32(0), int32(0)
+	numRunningPods, numPendingPods, numUnschedulablePods := int32(0), int32(0), int32(0)
 	for _, pod := range pods.Pods {
 		podNames.Add(pod.Name)
 		if pod.Status.Phase == corev1.PodRunning {
@@ -65,6 +65,11 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 			}
 		} else if pod.Status.Phase == corev1.PodPending {
 			numPendingPods = numPendingPods + 1
+			for _, podCondition := range pod.Status.Conditions {
+				if podCondition.Type == corev1.PodScheduled && podCondition.Status == corev1.ConditionFalse && podCondition.Reason == corev1.PodReasonUnschedulable {
+					numUnschedulablePods = numUnschedulablePods + 1
+				}
+			}
 		}
 	}
 	numFailedPods := numPods - numRunningPods - numPendingPods
@@ -81,8 +86,10 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 	logging.Logger.Debugf("Found %d active agents out of %d agents in the cluster. There are %d queued jobs.", numActiveAgents, numPods, numQueuedJobs)
 
 	if numRunningPods != numPods {
-		logging.Logger.Infof("Not scaling - there are %d pending pods and %d failed pods.", numPendingPods, numFailedPods)
-		return nil
+		if !(numUnschedulablePods == numPendingPods && numFailedPods == 0) {
+			logging.Logger.Infof("Not scaling - there are %d pending pods and %d failed pods.", numPendingPods, numFailedPods)
+			return nil
+		}
 	}
 
 	// Determine delta for how much to scale by
@@ -93,6 +100,11 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 	} else if numActiveAgents+args.Min+numQueuedJobs < numPods {
 		// Scale down
 		scale = -numPods + numActiveAgents + args.Min + numQueuedJobs
+	}
+
+	if scale > 0 && numUnschedulablePods > 0 {
+		logging.Logger.Infof("Not scaling up - there are %d unschedulable pods.", numUnschedulablePods)
+		return nil
 	}
 
 	// Apply scaling limits and scale down limits

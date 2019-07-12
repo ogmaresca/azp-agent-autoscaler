@@ -17,9 +17,9 @@ var (
 
 func TestAutoscale(t *testing.T) {
 	failed := false
-	for numActiveJobs := int32(0); numActiveJobs < 10; numActiveJobs = numActiveJobs + 2 {
-		for numQueuedJobs := int32(0); numQueuedJobs < 10; numQueuedJobs = numQueuedJobs + 2 {
-			for numFreeAgents := int32(0); numFreeAgents < 20; numFreeAgents = numFreeAgents + 2 {
+	for numActiveJobs := int32(0); numActiveJobs < 10; numActiveJobs = numActiveJobs + 1 {
+		for numQueuedJobs := int32(0); numQueuedJobs < 10; numQueuedJobs = numQueuedJobs + 1 {
+			for numFreeAgents := int32(0); numFreeAgents < 20; numFreeAgents = numFreeAgents + 1 {
 				for min := int32(1); min < 13; min = min + 3 {
 					for max := min + 1; max < min+20; max = max + 3 {
 						if failed {
