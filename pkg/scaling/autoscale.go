@@ -1,6 +1,7 @@
 package scaling
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -102,9 +103,29 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 		scale = -numPods + numActiveAgents + args.Min + numQueuedJobs
 	}
 
+	// Allow scaling down if there are unschedulable pods
+	// This way node(s) don't have to be allocated and all of the pods launched before a scale down is allowed
 	if scale > 0 && numUnschedulablePods > 0 {
 		logging.Logger.Infof("Not scaling up - there are %d unschedulable pods.", numUnschedulablePods)
 		return nil
+	}
+
+	// If there are currently 10 pods and 1 active job, but azp-agent-9 (statefulset pod names are zero-indexed)
+	// is currently active, then don't scale down
+	if scale < 0 && numActiveAgents > 0 && strings.EqualFold(deployment.Kind, "StatefulSet") {
+		minActivePod := int32(0)
+		for i := numPods - 1; i > 0 && minActivePod == 0; i-- {
+			if activeAgentNames.Contains(fmt.Sprintf("%s-%d", deployment.Name, i)) {
+				minActivePod = i
+				break
+			}
+		}
+		if minActivePod > 0 {
+			scale = math.MaxInt32(0-numPods+1+minActivePod, scale)
+			if scale == 0 {
+				logging.Logger.Debugf("Not scaling down - the last agent pod is active")
+			}
+		}
 	}
 
 	// Apply scaling limits and scale down limits
