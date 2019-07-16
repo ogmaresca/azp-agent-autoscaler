@@ -40,7 +40,7 @@ func Agents(num int32, free bool, startPos int32) []azuredevops.AgentDetails {
 		if free {
 			agent.AssignedRequest = nil
 		} else {
-			agent.AssignedRequest = &Jobs(1, false, []azuredevops.AgentDetails{agent}, 0)[0]
+			agent.AssignedRequest = &Jobs(1, false, []azuredevops.AgentDetails{agent}, 0, 0)[0]
 		}
 		agents = append(agents, agent)
 	}
@@ -48,7 +48,7 @@ func Agents(num int32, free bool, startPos int32) []azuredevops.AgentDetails {
 }
 
 // Jobs creates mock JobRequest objects
-func Jobs(num int32, queued bool, agents []azuredevops.AgentDetails, startPos int32) []azuredevops.JobRequest {
+func Jobs(num int32, queued bool, agents []azuredevops.AgentDetails, startPos int32, runningAgentPos int32) []azuredevops.JobRequest {
 	var jobs []azuredevops.JobRequest
 	baseAgents := []azuredevops.Agent{}
 	for _, agent := range agents {
@@ -56,14 +56,14 @@ func Jobs(num int32, queued bool, agents []azuredevops.AgentDetails, startPos in
 	}
 	for i := startPos; i < startPos+num; i++ {
 		job := azuredevops.JobRequest{
-			JobID: fmt.Sprintf("job-%d-queued=%t", num, queued),
+			JobID:                  fmt.Sprintf("job-%d-queued=%t", num, queued),
 			MatchesAllAgentsInPool: true,
 			MatchedAgents:          baseAgents,
 		}
 		if queued {
 			job.ReservedAgent = nil
 		} else {
-			job.ReservedAgent = &baseAgents[0]
+			job.ReservedAgent = &baseAgents[runningAgentPos]
 		}
 		jobs = append(jobs, job)
 	}
@@ -79,6 +79,7 @@ type mockAZDClient struct {
 	ErrorAgents      bool
 	NumQueuedJobs    int32
 	ErrorJobs        bool
+	FreeAgentsFirst  bool
 }
 
 // ListPoolsAsync retrieves a list of agent pools
@@ -111,8 +112,7 @@ func (c mockAZDClient) ListPoolAgentsAsync(channel chan<- azuredevops.PoolAgents
 	if c.ErrorListPools {
 		channel <- azuredevops.PoolAgentsResponse{[]azuredevops.AgentDetails{}, fmt.Errorf("Mock AZD Client Error")}
 	} else {
-		agents := Agents(c.NumRunningAgents, false, 0)
-		agents = append(agents, Agents(c.NumFreeAgents, true, int32(len(agents)))...)
+		agents := c.listPoolAgents()
 		channel <- azuredevops.PoolAgentsResponse{agents, nil}
 	}
 }
@@ -122,10 +122,26 @@ func (c mockAZDClient) ListJobRequestsAsync(channel chan<- azuredevops.JobReques
 	if c.ErrorListPools {
 		channel <- azuredevops.JobRequestsResponse{[]azuredevops.JobRequest{}, fmt.Errorf("Mock AZD Client Error")}
 	} else {
-		agents := Agents(c.NumRunningAgents, false, 0)
-		agents = append(agents, Agents(c.NumFreeAgents, true, int32(len(agents)))...)
-		jobs := Jobs(c.NumRunningAgents, false, agents, 0)
-		jobs = append(jobs, Jobs(c.NumQueuedJobs, true, agents, int32(len(agents)))...)
+		agents := c.listPoolAgents()
+		runningAgentPos := int32(0)
+		if c.FreeAgentsFirst && c.NumRunningAgents > 0 {
+			runningAgentPos = c.NumFreeAgents
+		}
+		jobs := Jobs(c.NumRunningAgents, false, agents, 0, runningAgentPos)
+		jobs = append(jobs, Jobs(c.NumQueuedJobs, true, agents, int32(len(agents)), runningAgentPos)...)
 		channel <- azuredevops.JobRequestsResponse{jobs, nil}
 	}
+}
+
+func (c mockAZDClient) listPoolAgents() []azuredevops.AgentDetails {
+	agents := []azuredevops.AgentDetails{}
+	if c.FreeAgentsFirst {
+		agents = append(agents, Agents(c.NumFreeAgents, true, 0)...)
+		agents = append(agents, Agents(c.NumRunningAgents, false, int32(len(agents)))...)
+	} else {
+		agents = append(agents, Agents(c.NumRunningAgents, false, 0)...)
+		agents = append(agents, Agents(c.NumFreeAgents, true, int32(len(agents)))...)
+	}
+
+	return agents
 }

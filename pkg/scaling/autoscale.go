@@ -79,6 +79,7 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 
 	// Get number of active agents
 	activeAgentNames := getActiveAgentNames(agents.Agents, podNames)
+	activeAgentPodNames := getActiveAgentPodNames(agents.Agents, podNames)
 	numActiveAgents := int32(len(activeAgentNames))
 
 	// Determine the number of jobs that are queued
@@ -113,17 +114,18 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 	// If there are currently 10 pods and 1 active job, but azp-agent-9 (statefulset pod names are zero-indexed)
 	// is currently active, then don't scale down
 	if scale < 0 && numActiveAgents > 0 && strings.EqualFold(deployment.Kind, "StatefulSet") {
-		minActivePod := int32(0)
-		for i := numPods - 1; i > 0 && minActivePod == 0; i-- {
-			if activeAgentNames.Contains(fmt.Sprintf("%s-%d", deployment.Name, i)) {
-				minActivePod = i
+		maxActivePod := int32(0)
+		for i := numPods - 1; i > 0 && maxActivePod == 0; i-- {
+			if activeAgentPodNames.Contains(fmt.Sprintf("%s-%d", deployment.Name, i)) {
+				maxActivePod = i
 				break
 			}
 		}
-		if minActivePod > 0 {
-			scale = math.MaxInt32(0-numPods+1+minActivePod, scale)
+		if maxActivePod > 0 {
+			scale = math.MaxInt32(0-numPods+1+maxActivePod, scale)
 			if scale == 0 {
 				logging.Logger.Debugf("Not scaling down - the last agent pod is active")
+				return nil
 			}
 		}
 	}
@@ -131,28 +133,39 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 	// Apply scaling limits and scale down limits
 	podsToScaleTo := numPods
 	if scale > 0 {
-		podsToScaleTo = math.MaxInt32(numActiveAgents, math.MinInt32(args.Max, numPods+scale))
+		// Scale up
+		podsToScaleTo = math.MaxInt32(numActiveAgents, math.MinInt32(args.Max, numPods+scale), numPods-args.ScaleDown.Max)
 	} else if scale < 0 {
+		// Scale down, don't kill active agents
 		podsToScaleTo = math.MaxInt32(numActiveAgents, math.MinInt32(args.Max, math.MaxInt32(args.Min, numPods+scale)))
-
-		now := time.Now()
-		if now.Before(lastScaleDown.Add(args.ScaleDown.Delay)) {
-			logging.Logger.Debugf("Not scaling down %s from %d to %d pods - cannot scale down until %s", deployment.FriendlyName, numPods, podsToScaleTo, lastScaleDown.Add(args.ScaleDown.Delay).String())
-		} else if numPods-podsToScaleTo > args.ScaleDown.Max {
-			logging.Logger.Debugf("Capping the scale down from %d to %d pods", podsToScaleTo, numPods-args.ScaleDown.Max)
-			podsToScaleTo = numPods - args.ScaleDown.Max
-		}
 	} else if podsToScaleTo > args.Max {
+		// If there happens to be more pods than the max arg
 		if numActiveAgents > args.Max {
 			podsToScaleTo = numActiveAgents
 			logging.Logger.Warningf("There are %d pods over the max of %d - limiting the scale down to %d active agents", numPods, args.Max, numActiveAgents)
 		} else {
-			podsToScaleTo = args.Max
+			podsToScaleTo = math.MaxInt32(args.Max, numPods-args.ScaleDown.Max)
 			logging.Logger.Warningf("There are %d pods over the max of %d - scaling down to meet the max", numPods, args.Max)
 		}
 	} else {
 		logging.Logger.Tracef("Not scaling %s from %d pods", deployment.FriendlyName, numPods)
 		return nil
+	}
+
+	// Apply scale-down limits
+	if podsToScaleTo < numPods {
+		now := time.Now()
+		nextAllowedScaleDown := lastScaleDown.Add(args.ScaleDown.Delay)
+		if now.Before(nextAllowedScaleDown) {
+			logging.Logger.Debugf("Not scaling down %s from %d to %d pods - cannot scale down until %s", deployment.FriendlyName, numPods, podsToScaleTo, nextAllowedScaleDown.String())
+			return nil
+		}
+
+		podsToScaleToMin := numPods - args.ScaleDown.Max
+		if podsToScaleTo < podsToScaleToMin {
+			logging.Logger.Debugf("Capping the scale down from %d to %d pods", podsToScaleTo, podsToScaleToMin)
+			podsToScaleTo = podsToScaleToMin
+		}
 	}
 
 	if numPods != podsToScaleTo {
@@ -179,6 +192,19 @@ func getActiveAgentNames(agents []azuredevops.AgentDetails, podNames collections
 		}
 	}
 	return activeAgentNames
+}
+
+func getActiveAgentPodNames(agents []azuredevops.AgentDetails, podNames collections.StringSet) collections.StringSet {
+	activeAgentPodNames := make(collections.StringSet)
+	for _, agent := range agents {
+		if strings.EqualFold(agent.Status, "online") {
+			podName := agent.SystemCapabilities["HOSTNAME"]
+			if podNames.Contains(podName) && agent.AssignedRequest != nil {
+				activeAgentPodNames.Add(podName)
+			}
+		}
+	}
+	return activeAgentPodNames
 }
 
 func getNumQueuedJobs(jobs []azuredevops.JobRequest, activeAgentNames collections.StringSet) int32 {
