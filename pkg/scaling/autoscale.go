@@ -7,6 +7,9 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/args"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/azuredevops"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/collections"
@@ -16,7 +19,39 @@ import (
 )
 
 var (
-	lastScaleDown = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
+	lastScaleDown    = time.Date(1970, time.January, 1, 0, 0, 0, 0, time.UTC)
+	scaleDownCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "azp_agent_autoscaler_scale_down_count",
+		Help: "The total number of scale downs",
+	})
+	scaleUpCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "azp_agent_autoscaler_scale_up_count",
+		Help: "The total number of scale ups",
+	})
+	scaleDownLimitedCounter = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "azp_agent_autoscaler_scale_down_limited_count",
+		Help: "The total number of scale downs prevented due to limits",
+	})
+	scaleSizeGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "azp_agent_autoscaler_scale_size",
+		Help: "The size of the agent scaling",
+	})
+	activeAgentsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "azp_agent_autoscaler_active_agents_count",
+		Help: "The number of active agents",
+	})
+	pendingAgentsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "azp_agent_autoscaler_pending_agents_count",
+		Help: "The number of pending agents",
+	})
+	failedAgentsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "azp_agent_autoscaler_failed_agents_count",
+		Help: "The number of failed agents",
+	})
+	queuedPodsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "azp_agent_autoscaler_queued_pods_count",
+		Help: "The number of queued pods",
+	})
 )
 
 // Autoscale the agent deployment
@@ -87,9 +122,16 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 
 	logging.Logger.Debugf("Found %d active agents out of %d agents in the cluster. There are %d queued jobs.", numActiveAgents, numPods, numQueuedJobs)
 
+	// Apply metrics
+	activeAgentsGauge.Set(float64(numActiveAgents))
+	pendingAgentsGauge.Set(float64(numPendingPods))
+	failedAgentsGauge.Set(float64(numFailedPods))
+	queuedPodsGauge.Set(float64(numQueuedJobs))
+
 	if numRunningPods != numPods {
 		if !(numUnschedulablePods == numPendingPods && numFailedPods == 0) {
 			logging.Logger.Infof("Not scaling - there are %d pending pods and %d failed pods.", numPendingPods, numFailedPods)
+			scaleSizeGauge.Set(0)
 			return nil
 		}
 	}
@@ -108,6 +150,7 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 	// This way node(s) don't have to be allocated and all of the pods launched before a scale down is allowed
 	if scale > 0 && numUnschedulablePods > 0 {
 		logging.Logger.Infof("Not scaling up - there are %d unschedulable pods.", numUnschedulablePods)
+		scaleSizeGauge.Set(0)
 		return nil
 	}
 
@@ -125,6 +168,7 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 			scale = math.MaxInt32(0-numPods+1+maxActivePod, scale)
 			if scale == 0 {
 				logging.Logger.Debugf("Not scaling down - the last agent pod is active")
+				scaleSizeGauge.Set(0)
 				return nil
 			}
 		}
@@ -149,6 +193,7 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 		}
 	} else {
 		logging.Logger.Tracef("Not scaling %s from %d pods", deployment.FriendlyName, numPods)
+		scaleSizeGauge.Set(0)
 		return nil
 	}
 
@@ -158,6 +203,8 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 		nextAllowedScaleDown := lastScaleDown.Add(args.ScaleDown.Delay)
 		if now.Before(nextAllowedScaleDown) {
 			logging.Logger.Debugf("Not scaling down %s from %d to %d pods - cannot scale down until %s", deployment.FriendlyName, numPods, podsToScaleTo, nextAllowedScaleDown.String())
+			scaleDownLimitedCounter.Inc()
+			scaleSizeGauge.Set(0)
 			return nil
 		}
 
@@ -169,6 +216,14 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 	}
 
 	if numPods != podsToScaleTo {
+		// Apply metrics
+		if podsToScaleTo < numPods {
+			scaleDownCounter.Inc()
+		} else {
+			scaleUpCounter.Inc()
+		}
+		scaleSizeGauge.Set(float64(podsToScaleTo - numPods))
+
 		logging.Logger.Infof("Scaling %s from %d to %d pods", deployment.FriendlyName, numPods, podsToScaleTo)
 		err := k8sClient.Sync().Scale(deployment, podsToScaleTo)
 		if err == nil && scale < 0 {
@@ -176,6 +231,8 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 		}
 		return err
 	}
+
+	scaleSizeGauge.Set(0)
 
 	logging.Logger.Debugf("Not scaling from %d pods", numPods)
 	return nil

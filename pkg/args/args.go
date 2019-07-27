@@ -21,7 +21,7 @@ var (
 	resourceNamespace = flag.String("namespace", "", "The namespace of the StatefulSet.")
 	azpToken          = flag.String("token", "", "The Azure Devops token.")
 	azpURL            = flag.String("url", "", "The Azure Devops URL. https://dev.azure.com/AccountName")
-	port              = flag.Int("port", 10101, "The port to serve health checks.")
+	port              = flag.Int("port", 10101, "The port to serve health checks and metrics.")
 )
 
 // Args holds all of the program arguments

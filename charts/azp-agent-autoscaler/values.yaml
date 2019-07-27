@@ -1,6 +1,6 @@
-# Default values for azp-agent-autoscaler.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
+## Default values for azp-agent-autoscaler.
+## This is a YAML-formatted file.
+## Declare variables to be passed into your templates.
 
 nameOverride: ""
 fullnameOverride: ""
@@ -8,47 +8,47 @@ fullnameOverride: ""
 minReadySeconds: 0
 revisionHistoryLimit: 10
 
-# The update strategy of the StatefulSet
+## The update strategy of the StatefulSet
 updateStrategy:
   type: Recreate
 
 image:
   repository: docker.io/gmaresca/azp-agent-autoscaler
-  tag: 1.0.6
+  tag: 1.0.7
   pullPolicy: IfNotPresent
   pullSecrets: []
 
-# The minimum number of free agents that should exist
+## The minimum number of free agents that should exist
 min: 1
-# The maximum number of agents allowed
+## The maximum number of agents allowed
 max: 100
 
-# trace, debug, info, warn, error, fatal, panic
+## trace, debug, info, warn, error, fatal, panic
 logLevel: info
-# How often the Kubernetes and Azure Devops API should be polled
+## How often the Kubernetes and Azure Devops API should be polled
 rate: 10s
 
-# The limit to scale down each iteration
+## The limit to scale down each iteration
 scaleDownMax: 1
-# How often to wait before another scale down is allowed
+## How often to wait before another scale down is allowed
 scaleDownDelay: 10s
 
 agents:
-  # The workload kind the agents are deployed as
+  ## The workload kind the agents are deployed as
   kind: StatefulSet
-  # The name of the agents workload
+  ## The name of the agents workload
   name: ''
-  # The agents workload namespace. Defaults to Release.Namespace
+  ## The agents workload namespace. Defaults to Release.Namespace
   namespace: ''
 
 azp:
-  # The Azure Devops URL, ex: https://dev.azure.com/azureAccountName
+  ## The Azure Devops URL, ex: https://dev.azure.com/azureAccountName
   url: ''
-  # The Azure Devops token. Needs Agent Pools (Read) permission
+  ## The Azure Devops token. Needs Agent Pools (Read) permission
   token: ''
-  # If you already have a secret with the Azure Devops token, define its name here
+  ## If you already have a secret with the Azure Devops token, define its name here
   existingSecret: ''
-  # If you already have a secret with the Azure Devops token, define key of the secret here
+  ## If you already have a secret with the Azure Devops token, define key of the secret here
   existingSecretKey: ''
 
 resources:
@@ -59,8 +59,8 @@ resources:
     cpu: 0.1
     memory: 32Mi
 
-# Liveness probe values
-# Ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
+## Liveness probe values
+## Ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#container-probes
 livenessProbe:
   failureThreshold: 3
   initialDelaySeconds: 1
@@ -68,62 +68,78 @@ livenessProbe:
   successThreshold: 1
   timeoutSeconds: 1
 
-# Labels to add to the deployment
+## Labels to add to the deployment
 labels: {}
-# Annotations to add to the deployment
+## Annotations to add to the deployment
 annotations: {}
 
-# Labels to add to the pods
+## Labels to add to the pods
 podLabels: {}
-# Annotations to add to the pods
+## Annotations to add to the pods
 podAnnotations: {}
+  #prometheus.io/scrape: 'true'
+  #prometheus.io/port: health
+  #prometheus.io/path: /metrics
 
 pdb:
-  # Enable a PodDisruptionBudget
+  ## Enable a PodDisruptionBudget
   enabled: false
   minAvailable: 50%
   #maxUnavailable: 50%
 
 rbac:
   create: true
-  # azp-agent-autoscaler needs to get the pool name from the agent's environment variables
-  # If the AZP_POOL environment variable comes from a configmap or a secret, enable this
+  ## azp-agent-autoscaler needs to get the pool name from the agent's environment variables
+  ## If the AZP_POOL environment variable comes from a configmap or a secret, enable this
   getConfigmaps: false
   getSecrets: false
 
 serviceAccount:
-  # Specifies whether a ServiceAccount should be created
+  ## Specifies whether a ServiceAccount should be created
   create: true
-  # The name of the ServiceAccount to use.
-  # If not set and create is true, a name is generated using the fullname template
+  ## The name of the ServiceAccount to use.
+  ## If not set and create is true, a name is generated using the fullname template
   name:
+
+## Values for a Prometheus-Operator PodMonitor
+## Ref: https://github.com/helm/charts/blob/master/stable/prometheus-operator/templates/prometheus-operator/crd-podmonitor.yaml
+## Requires having the release stable/prometheus-operator installed with at least version 5.14.0 installed
+podMonitor:
+  enabled: false
+  #namespace: 
+  ## Labels to add to the PodMonitor
+  labels: {}
+  # honorLabels: true
+  #interval: 30s
+  metricRelabelings: []
+  relabelings: []
 
 #dnsPolicy: ClusterFirst
 dnsConfig: {}
 
-# The deployment restart policy
+## The deployment restart policy
 restartPolicy: Always
 
-# Node labels selecting nodes to run on
-# Ref: https://kubernetes.io/docs/user-guide/node-selection/
+## Node labels selecting nodes to run on
+## Ref: https://kubernetes.io/docs/user-guide/node-selection/
 nodeSelector: {}
 
-# Node tolerations for scheduling to nodes with taints
-# Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+## Node tolerations for scheduling to nodes with taints
+## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
 tolerations: []
 
 affinity: {}
 
-# Security Context policies for the pod
+## Security Context policies for the pod
 securityContext: {}
 
-# Whether to use the network of the host node
+## Whether to use the network of the host node
 hostNetwork: false
 
-# Containers to run before the main container starts
+## Containers to run before the main container starts
 initContainers: []
 
 lifecycle: {}
 
-# Additional containers to deploy in the pod
+## Additional containers to deploy in the pod
 sidecars: []

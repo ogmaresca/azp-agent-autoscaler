@@ -27,62 +27,69 @@ The values `azp.token` and `azp.url` are required to install the chart. `azp.tok
 
 `agents.Name` is the name of the resource your agents are deployed in. `agents.Namespace` is the namespace the resource is in, which defaults to the release namespace. `agents.Kind` is the resource kind the agents are deployed in. Only StatefulSet is currently supported, which is the default value.
 
-| Parameter                             | Description                                                             | Default                                 |
-| ------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------- |
-| `nameOverride`                        | An override value for the name.                                         |                                         |
-| `fullnameOverride`                    | An override value for the full name.                                    |                                         |
-| `min`                                 | The minimum number of agent pods.                                       | 1                                       |
-| `max`                                 | The maximum number of agent pods.                                       | 100                                     |
-| `logLevel`                            | The log level (trace, debug, info, warn, error, fatal, panic)           | info                                    |
-| `rate`                                | The period to poll Azure Devops and the Kubernetes API                  | 10s                                     |
-| `scaleDownMax`                        | The maximum number of pods allowed to scale down at a time              | 1                                       |
-| `scaleDownDelay`                      | The time to wait before being allowed to scale down again               | 10s                                     |
-| `agents.Kind`                         | The Kubernetes resource kind of the agents                              | StatefulSet                             |
-| `agents.Name`                         | The Kubernetes resource name of the agents                              | ``                                      |
-| `agents.Namespace`                    | The Kubernetes resource namespace of the agents                         | `.Release.Namespace`                    |
-| `azp.url`                             | The Azure Devops account URL. ex: https://dev.azure.com/Organization    |                                         |
-| `azp.token`                           | The Azure Devops access token.                                          |                                         |
-| `azp.existingSecret`                  | An existing secret that contains the token.                             |                                         |
-| `azp.existingSecretKey`               | The key of the existing secret that contains the token.                 |                                         |
-| `image.repository`                    | The Docker Hub repository of the agent autoscaler.                      | docker.io/gmaresca/azp-agent-autoscaler |
-| `image.tag`                           | The image tag of the agent autoscaler.                                  | latest version                          |
-| `image.pullPolicy`                    | The image pull policy.                                                  | IfNotPresent                            |
-| `image.pullSecrets`                   | Image Pull Secrets to use.                                              | `[]`                                    |
-| `resources.requests.cpu`              | The CPU requests of the agent autoscaler.                               | 0.05                                    |
-| `resources.requests.memory`           | The memory requests of the agent autoscaler.                            | 16Mi                                    |
-| `resources.limits.cpu`                | The CPU limits of the agent autoscaler.                                 | 0.1                                     |
-| `resources.limits.memory`             | The memory limits of the agent autoscaler.                              | 32Mi                                    |
-| `livenessProbe.failureThreshold`      | The failure threshold for the liveness probe.                           | 3                                       |
-| `livenessProbe.initialDelaySeconds`   | The initial delay for the liveness probe.                               | 1                                       |
-| `livenessProbe.periodSeconds`         | The liveness probe period.                                              | 10                                      |
-| `livenessProbe.successThreshold`      | The success threshold for the liveness probe.                           | 1                                       |
-| `livenessProbe.timeoutSeconds`        | The timeout for the liveness probe.                                     | 1                                       |
-| `minReadySeconds`                     | The deployment's `minReadySeconds`.                                     | 0                                       |
-| `revisionHistoryLimit`                | Number of Deployment versions to keep.                                  | 10                                      |
-| `updateStrategy.type`                 | The Deployment Update Strategy type.                                    | Recreate                                |
-| `labels`                              | Labels to add to the Deployment.                                        | `{}`                                    |
-| `annotations`                         | Annotations to add to the Deployment.                                   | `{}`                                    |
-| `podLabels`                           | Labels to add to the Pod.                                               | `{}`                                    |
-| `podAnnotations`                      | Annotations to add to the Pod.                                          | `{}`                                    |
-| `pdb.enabled`                         | Whether to enable a PodDisruptionBudget.                                | `false`                                 |
-| `pdb.minAvailable`                    | The minimum number of pods to keep. Incompatible with `maxUnavailable`. | 50%                                     |
-| `pdb.maxUnavailable`                  | The maximum unvailable pods. Incompatible with `minAvailable`.          | 50%                                     |
-| `rbac.create`                         | Whether to create Role Based Access for the deployment.                 | `true`                                  |
-| `serviceAccount.create`               | Whether to create a service account for the deployment.                 | `true`                                  |
-| `serviceAccount.name`                 | The name of an existing SA `serviceAccount.create` is false.            |                                         |
-| `rbac.getConfigmaps`                  | Allow getting ConfigMaps, to retrieve the AZP_POOL env value.           | `false`                                 |
-| `rbac.getSecrets`                     | Allow getting Secrets, to retrieve the AZP_POOL env value.              | `false`                                 |
-| `dnsPolicy`                           | The pod DNS policy.                                                     | `null`                                  |
-| `dnsConfig`                           | The pod DNS config.                                                     | `{}`                                    |
-| `restartPolicy`                       | The pod restart policy.                                                 | Always                                  |
-| `nodeSelector`                        | The pod node selector.                                                  | `{}`                                    |
-| `tolerations`                         | The pod node tolerations.                                               | `{}`                                    |
-| `affinity`                            | The pod node affinity.                                                  | `{}`                                    |
-| `securityContext`                     | The pod security context.                                               | `{}`                                    |
-| `hostNetwork`                         | Whether to use the host network of the node.                            | `false`                                 |
-| `initContainers`                      | Init containers to add.                                                 | `[]`                                    |
-| `lifecycle`                           | Lifecycle (postStart, preStop) for the pod.                             | `{}`                                    |
-| `sidecars`                            | Additional containers to add.                                           | `[]`                                    |
+| Parameter                           | Description                                                             | Default                                 |
+| ----------------------------------- | ----------------------------------------------------------------------- | --------------------------------------- |
+| `nameOverride`                      | An override value for the name.                                         |                                         |
+| `fullnameOverride`                  | An override value for the full name.                                    |                                         |
+| `min`                               | The minimum number of agent pods.                                       | 1                                       |
+| `max`                               | The maximum number of agent pods.                                       | 100                                     |
+| `logLevel`                          | The log level (trace, debug, info, warn, error, fatal, panic)           | info                                    |
+| `rate`                              | The period to poll Azure Devops and the Kubernetes API                  | 10s                                     |
+| `scaleDownMax`                      | The maximum number of pods allowed to scale down at a time              | 1                                       |
+| `scaleDownDelay`                    | The time to wait before being allowed to scale down again               | 10s                                     |
+| `agents.Kind`                       | The Kubernetes resource kind of the agents                              | StatefulSet                             |
+| `agents.Name`                       | The Kubernetes resource name of the agents                              | ``                                      |
+| `agents.Namespace`                  | The Kubernetes resource namespace of the agents                         | `.Release.Namespace`                    |
+| `azp.url`                           | The Azure Devops account URL. ex: https://dev.azure.com/Organization    |                                         |
+| `azp.token`                         | The Azure Devops access token.                                          |                                         |
+| `azp.existingSecret`                | An existing secret that contains the token.                             |                                         |
+| `azp.existingSecretKey`             | The key of the existing secret that contains the token.                 |                                         |
+| `image.repository`                  | The Docker Hub repository of the agent autoscaler.                      | docker.io/gmaresca/azp-agent-autoscaler |
+| `image.tag`                         | The image tag of the agent autoscaler.                                  | latest version                          |
+| `image.pullPolicy`                  | The image pull policy.                                                  | IfNotPresent                            |
+| `image.pullSecrets`                 | Image Pull Secrets to use.                                              | `[]`                                    |
+| `resources.requests.cpu`            | The CPU requests of the agent autoscaler.                               | 0.05                                    |
+| `resources.requests.memory`         | The memory requests of the agent autoscaler.                            | 16Mi                                    |
+| `resources.limits.cpu`              | The CPU limits of the agent autoscaler.                                 | 0.1                                     |
+| `resources.limits.memory`           | The memory limits of the agent autoscaler.                              | 32Mi                                    |
+| `livenessProbe.failureThreshold`    | The failure threshold for the liveness probe.                           | 3                                       |
+| `livenessProbe.initialDelaySeconds` | The initial delay for the liveness probe.                               | 1                                       |
+| `livenessProbe.periodSeconds`       | The liveness probe period.                                              | 10                                      |
+| `livenessProbe.successThreshold`    | The success threshold for the liveness probe.                           | 1                                       |
+| `livenessProbe.timeoutSeconds`      | The timeout for the liveness probe.                                     | 1                                       |
+| `minReadySeconds`                   | The deployment's `minReadySeconds`.                                     | 0                                       |
+| `revisionHistoryLimit`              | Number of Deployment versions to keep.                                  | 10                                      |
+| `updateStrategy.type`               | The Deployment Update Strategy type.                                    | Recreate                                |
+| `labels`                            | Labels to add to the Deployment.                                        | `{}`                                    |
+| `annotations`                       | Annotations to add to the Deployment.                                   | `{}`                                    |
+| `podLabels`                         | Labels to add to the Pod.                                               | `{}`                                    |
+| `podAnnotations`                    | Annotations to add to the Pod.                                          | `{}`                                    |
+| `pdb.enabled`                       | Whether to enable a PodDisruptionBudget.                                | `false`                                 |
+| `pdb.minAvailable`                  | The minimum number of pods to keep. Incompatible with `maxUnavailable`. | 50%                                     |
+| `pdb.maxUnavailable`                | The maximum unvailable pods. Incompatible with `minAvailable`.          | 50%                                     |
+| `rbac.create`                       | Whether to create Role Based Access for the deployment.                 | `true`                                  |
+| `serviceAccount.create`             | Whether to create a service account for the deployment.                 | `true`                                  |
+| `serviceAccount.name`               | The name of an existing SA `serviceAccount.create` is false.            |                                         |
+| `podMonitor.enabled`                | Create a `prometheus-operator` PodMonitor                               | `false`                                 |
+| `podMonitor.namespace`              | The namespace to install the PodMonitor                                 | Release namespace                       |
+| `podMonitor.labels`                 | Labels to add to the PodMonitor                                         | `{}`                                    |
+| `podMonitor.honorLabels`            | Set `honorLabels` on the PodMonitor spec                                |                                         |
+| `podMonitor.interval`               | The scrape interval on the PodMonitor                                   | Defaults to `rate`                      |
+| `podMonitor.metricRelabelings`      | `metricRelabelings` to set on the PodMonitor                            | `false`                                 |
+| `podMonitor.relabelings`            | `relabelings` to set on the PodMonitor                                  | `false`                                 |
+| `rbac.getConfigmaps`                | Allow getting ConfigMaps, to retrieve the AZP_POOL env value.           | `false`                                 |
+| `rbac.getSecrets`                   | Allow getting Secrets, to retrieve the AZP_POOL env value.              | `false`                                 |
+| `dnsPolicy`                         | The pod DNS policy.                                                     | `null`                                  |
+| `dnsConfig`                         | The pod DNS config.                                                     | `{}`                                    |
+| `restartPolicy`                     | The pod restart policy.                                                 | Always                                  |
+| `nodeSelector`                      | The pod node selector.                                                  | `{}`                                    |
+| `tolerations`                       | The pod node tolerations.                                               | `{}`                                    |
+| `affinity`                          | The pod node affinity.                                                  | `{}`                                    |
+| `securityContext`                   | The pod security context.                                               | `{}`                                    |
+| `hostNetwork`                       | Whether to use the host network of the node.                            | `false`                                 |
+| `initContainers`                    | Init containers to add.                                                 | `[]`                                    |
+| `lifecycle`                         | Lifecycle (postStart, preStop) for the pod.                             | `{}`                                    |
+| `sidecars`                          | Additional containers to add.                                           | `[]`                                    |
 
 
 ## Docker Hub

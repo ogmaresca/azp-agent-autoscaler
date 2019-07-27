@@ -1,0 +1,41 @@
+{{ if .Values.podMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: {{ template "azp-agent-autoscaler.fullname" . }}
+  namespace: {{ .Values.podMonitor.namespace | default .Release.Namespace }}
+  labels:
+    {{- include "azp-agent-autoscaler.labels" . | nindent 4 }}
+    {{- include "azp-agent-autoscaler.stringDict" .Values.podMonitor.labels | nindent 4 }}
+spec:
+  jobLabel: {{ template "azp-agent-autoscaler.fullname" . }}
+  namespaceSelector:
+    matchNames:
+    - {{ .Release.Namespace }}
+  podMetricsEndpoints:
+  - port: metrics
+    interval: {{ .Values.podMonitor.interval | default .Values.rate }}
+    path: /metrics
+    targetPort: health
+    scheme: http
+    {{- if .Values.podMonitor.honorLabels }}
+    honorLabels: true
+    {{- end }}
+    {{- with .Values.podMonitor.metricRelabelings }}
+    metricRelabelings:
+      {{- . | toYaml | nindent 6 }}
+    {{- end }}
+    {{- with .Values.podMonitor.relabelings }}
+    relabelings:
+      {{- . | toYaml | nindent 6 }}
+    {{- end }}
+  podTargetLabels:
+  - name
+  - release
+  {{- range $key, $value := .Values.podLabels }}
+  - {{ $key | quote }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "azp-agent-autoscaler.selector" . | nindent 6 }}
+{{ end }}

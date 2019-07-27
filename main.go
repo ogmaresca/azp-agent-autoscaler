@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/args"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/azuredevops"
 	"github.com/ggmaresca/azp-agent-autoscaler/pkg/health"
@@ -46,10 +48,12 @@ func main() {
 	// Get all agent pools
 	go azdClient.ListPoolsAsync(agentPoolsChan)
 	go func() {
-		http.Handle("/healthz", health.LivenessCheck{})
-		err := http.ListenAndServe(fmt.Sprintf(":%d", args.Health.Port), nil)
+		mux := http.NewServeMux()
+		mux.Handle("/healthz", health.LivenessCheck{})
+		mux.Handle("/metrics", promhttp.Handler())
+		err := http.ListenAndServe(fmt.Sprintf(":%d", args.Health.Port), mux)
 		if err != nil {
-			logging.Logger.Panicf("Error serving health checks: %s", err.Error())
+			logging.Logger.Panicf("Error serving health checks and metrics: %s", err.Error())
 		}
 	}()
 
