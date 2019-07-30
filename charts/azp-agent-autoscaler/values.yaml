@@ -101,10 +101,10 @@ serviceAccount:
   ## If not set and create is true, a name is generated using the fullname template
   name:
 
-## Values for a Prometheus-Operator PodMonitor
-## Ref: https://github.com/helm/charts/blob/master/stable/prometheus-operator/templates/prometheus-operator/crd-podmonitor.yaml
-## Requires having the release stable/prometheus-operator installed with at least version 5.14.0 installed
-podMonitor:
+## Values for a Prometheus-Operator ServiceMonitor
+## Ref: https://github.com/helm/charts/blob/master/stable/prometheus-operator/templates/prometheus-operator/crd-servicemonitor.yaml
+## Requires having the release stable/prometheus-operator installed
+serviceMonitor:
   enabled: false
   #namespace: 
   ## Labels to add to the PodMonitor

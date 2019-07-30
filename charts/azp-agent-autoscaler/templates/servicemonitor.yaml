@@ -1,31 +1,31 @@
-{{ if .Values.podMonitor.enabled }}
+{{ if .Values.serviceMonitor.enabled }}
 apiVersion: monitoring.coreos.com/v1
-kind: PodMonitor
+kind: ServiceMonitor
 metadata:
   name: {{ template "azp-agent-autoscaler.fullname" . }}
-  namespace: {{ .Values.podMonitor.namespace | default .Release.Namespace }}
+  namespace: {{ .Values.serviceMonitor.namespace | default .Release.Namespace }}
   labels:
     {{- include "azp-agent-autoscaler.labels" . | nindent 4 }}
-    {{- include "azp-agent-autoscaler.stringDict" .Values.podMonitor.labels | nindent 4 }}
+    {{- include "azp-agent-autoscaler.stringDict" .Values.serviceMonitor.labels | nindent 4 }}
 spec:
   jobLabel: {{ template "azp-agent-autoscaler.fullname" . }}
   namespaceSelector:
     matchNames:
     - {{ .Release.Namespace }}
-  podMetricsEndpoints:
+  endpoints:
   - port: metrics
-    interval: {{ .Values.podMonitor.interval | default .Values.rate }}
+    interval: {{ .Values.serviceMonitor.interval | default .Values.rate }}
     path: /metrics
     targetPort: health
     scheme: http
-    {{- if .Values.podMonitor.honorLabels }}
+    {{- if .Values.serviceMonitor.honorLabels }}
     honorLabels: true
     {{- end }}
-    {{- with .Values.podMonitor.metricRelabelings }}
+    {{- with .Values.serviceMonitor.metricRelabelings }}
     metricRelabelings:
       {{- . | toYaml | nindent 6 }}
     {{- end }}
-    {{- with .Values.podMonitor.relabelings }}
+    {{- with .Values.serviceMonitor.relabelings }}
     relabelings:
       {{- . | toYaml | nindent 6 }}
     {{- end }}

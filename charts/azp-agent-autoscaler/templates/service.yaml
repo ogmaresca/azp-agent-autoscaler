@@ -1,0 +1,17 @@
+{{- if .Values.serviceMonitor.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "azp-agent-autoscaler.fullname" . }}-metrics
+  labels:
+    {{- include "azp-agent-autoscaler.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+  - name: health
+    port: 10101
+    protocol: TCP
+    targetPort: health
+  selector:
+    {{- include "azp-agent-autoscaler.selector" . | nindent 4 }}
+{{- end }}

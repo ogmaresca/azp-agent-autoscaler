@@ -70,13 +70,13 @@ The values `azp.token` and `azp.url` are required to install the chart. `azp.tok
 | `rbac.create`                       | Whether to create Role Based Access for the deployment.                 | `true`                                  |
 | `serviceAccount.create`             | Whether to create a service account for the deployment.                 | `true`                                  |
 | `serviceAccount.name`               | The name of an existing SA `serviceAccount.create` is false.            |                                         |
-| `podMonitor.enabled`                | Create a `prometheus-operator` PodMonitor                               | `false`                                 |
-| `podMonitor.namespace`              | The namespace to install the PodMonitor                                 | Release namespace                       |
-| `podMonitor.labels`                 | Labels to add to the PodMonitor                                         | `{}`                                    |
-| `podMonitor.honorLabels`            | Set `honorLabels` on the PodMonitor spec                                |                                         |
-| `podMonitor.interval`               | The scrape interval on the PodMonitor                                   | Defaults to `rate`                      |
-| `podMonitor.metricRelabelings`      | `metricRelabelings` to set on the PodMonitor                            | `false`                                 |
-| `podMonitor.relabelings`            | `relabelings` to set on the PodMonitor                                  | `false`                                 |
+| `serviceMonitor.enabled`            | Create a `prometheus-operator` ServiceMonitor                           | `false`                                 |
+| `serviceMonitor.namespace`          | The namespace to install the ServiceMonitor                             | Release namespace                       |
+| `serviceMonitor.labels`             | Labels to add to the ServiceMonitor                                     | `{}`                                    |
+| `serviceMonitor.honorLabels`        | Set `honorLabels` on the ServiceMonitor spec                            |                                         |
+| `serviceMonitor.interval`           | The scrape interval on the ServiceMonitor                               | Defaults to `rate`                      |
+| `serviceMonitor.metricRelabelings`  | `metricRelabelings` to set on the ServiceMonitor                        | `false`                                 |
+| `serviceMonitor.relabelings`        | `relabelings` to set on the ServiceMonitor                              | `false`                                 |
 | `rbac.getConfigmaps`                | Allow getting ConfigMaps, to retrieve the AZP_POOL env value.           | `false`                                 |
 | `rbac.getSecrets`                   | Allow getting Secrets, to retrieve the AZP_POOL env value.              | `false`                                 |
 | `dnsPolicy`                         | The pod DNS policy.                                                     | `null`                                  |
