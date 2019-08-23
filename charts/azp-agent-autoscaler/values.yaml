@@ -114,6 +114,11 @@ serviceMonitor:
   metricRelabelings: []
   relabelings: []
 
+grafanaDashboard:
+  enabled: false
+  labels:
+    grafana_dashboard: '1'
+
 #dnsPolicy: ClusterFirst
 dnsConfig: {}
 
