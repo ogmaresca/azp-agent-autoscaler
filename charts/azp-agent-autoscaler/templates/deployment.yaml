@@ -65,19 +65,19 @@ spec:
         - '--port=10101'
         ports:
         - containerPort: 10101
-          name: health
+          name: metrics
           protocol: TCP
         livenessProbe:
           httpGet:
             path: /healthz
-            port: health
+            port: metrics
             scheme: HTTP
           failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
           initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
           periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
           successThreshold: {{ .Values.livenessProbe.successThreshold }}
           timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
-        {{- with .Values.azp.resources }}
+        {{- with .Values.resources }}
         resources:
           {{- . | toYaml | nindent 10 }}
         {{- end }}

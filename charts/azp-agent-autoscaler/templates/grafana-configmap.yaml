@@ -1,0 +1,12 @@
+{{- if .Values.grafanaDashboard.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "azp-agent-autoscaler.fullname" . }}-grafana-dashboard
+  labels:
+    {{- include "azp-agent-autoscaler.labels" . | nindent 4 }}
+    {{- include "azp-agent-autoscaler.stringDict" .Values.grafanaDashboard.labels | nindent 4 }}
+data:
+  '{{ include "azp-agent-autoscaler.fullname" . }}.json': |
+    {{- "dashboards/grafana.json" | .Files.Get | replace .Chart.Name (include "azp-agent-autoscaler.fullname" .) | nindent 4 }}
+{{- end }}

@@ -16,7 +16,7 @@ spec:
   - port: metrics
     interval: {{ .Values.serviceMonitor.interval | default .Values.rate }}
     path: /metrics
-    targetPort: health
+    targetPort: metrics
     scheme: http
     {{- if .Values.serviceMonitor.honorLabels }}
     honorLabels: true

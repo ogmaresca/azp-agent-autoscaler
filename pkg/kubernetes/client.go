@@ -50,9 +50,9 @@ func makeClient() (Client, error) {
 
 	clientset, err := k8s.NewForConfig(k8sConfig)
 	if err != nil {
-		return nil, nil
+		return nil, err
 	}
-	return ClientImpl{clientset}, err
+	return ClientImpl{clientset}, nil
 }
 
 // GetWorkload retrieves a Workload

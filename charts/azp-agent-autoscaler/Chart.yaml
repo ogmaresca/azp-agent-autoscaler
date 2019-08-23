@@ -1,7 +1,7 @@
 apiVersion: v1
 description: A Helm chart for Azure Pipeline Agents autoscaler
 name: azp-agent-autoscaler
-version: 1.0.4
-appVersion: 1.0.7
+version: 1.0.5
+appVersion: 1.0.8
 urls:
 - https://github.com/ggmaresca/azp-agent-autoscaler

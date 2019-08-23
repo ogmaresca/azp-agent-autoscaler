@@ -36,6 +36,10 @@ var (
 		Name: "azp_agent_autoscaler_scale_size",
 		Help: "The size of the agent scaling",
 	})
+	totalAgentsGauge = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "azp_agent_autoscaler_total_agents_count",
+		Help: "The total number of agents",
+	})
 	activeAgentsGauge = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "azp_agent_autoscaler_active_agents_count",
 		Help: "The number of active agents",
@@ -123,6 +127,7 @@ func Autoscale(azdClient azuredevops.ClientAsync, agentPoolID int, k8sClient kub
 	logging.Logger.Debugf("Found %d active agents out of %d agents in the cluster. There are %d queued jobs.", numActiveAgents, numPods, numQueuedJobs)
 
 	// Apply metrics
+	totalAgentsGauge.Set(float64(numPods))
 	activeAgentsGauge.Set(float64(numActiveAgents))
 	pendingAgentsGauge.Set(float64(numPendingPods))
 	failedAgentsGauge.Set(float64(numFailedPods))

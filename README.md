@@ -77,6 +77,8 @@ The values `azp.token` and `azp.url` are required to install the chart. `azp.tok
 | `serviceMonitor.interval`           | The scrape interval on the ServiceMonitor                               | Defaults to `rate`                      |
 | `serviceMonitor.metricRelabelings`  | `metricRelabelings` to set on the ServiceMonitor                        | `false`                                 |
 | `serviceMonitor.relabelings`        | `relabelings` to set on the ServiceMonitor                              | `false`                                 |
+| `grafanaDashboard.enabled`          | Create a ConfigMap with a Grafana dashboard.                            | `false`                                 |
+| `grafanaDashboard.labels`           | Labels to add to the Grafana dashboard ConfigMap.                       | `{"grafana_dashboard":"1"}`             |
 | `rbac.getConfigmaps`                | Allow getting ConfigMaps, to retrieve the AZP_POOL env value.           | `false`                                 |
 | `rbac.getSecrets`                   | Allow getting Secrets, to retrieve the AZP_POOL env value.              | `false`                                 |
 | `dnsPolicy`                         | The pod DNS policy.                                                     | `null`                                  |
