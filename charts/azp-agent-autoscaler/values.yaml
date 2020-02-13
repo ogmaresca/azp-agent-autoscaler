@@ -14,7 +14,7 @@ updateStrategy:
 
 image:
   repository: docker.io/gmaresca/azp-agent-autoscaler
-  tag: 1.0.7
+  tag: 1.0.9
   pullPolicy: IfNotPresent
   pullSecrets: []
 
@@ -94,12 +94,30 @@ rbac:
   getConfigmaps: false
   getSecrets: false
 
+  psp:
+    ## Create a PodSecurityPolicy
+    enabled: false
+    ## Override the PodSecurityPolicy name
+    # name:
+    ## Labels to add to the PodSecurityPolicy
+    labels: {}
+    ## Annotations to add to the PodSecurityPolicy
+    annotations: {}
+    ## Enforce AppArmor in created PodSecurityPolicy
+    appArmorProfile: 'runtime/default'
+    ## Enforce seccomp in created PodSecurityPolicy
+    seccompProfile: 'runtime/default'
+
 serviceAccount:
   ## Specifies whether a ServiceAccount should be created
   create: true
   ## The name of the ServiceAccount to use.
   ## If not set and create is true, a name is generated using the fullname template
   name:
+  ## Labels to add to the ServiceAccount
+  labels: {}
+  ## Annotations to add to the ServiceAccount
+  annotations: {}
 
 ## Values for a Prometheus-Operator ServiceMonitor
 ## Ref: https://github.com/helm/charts/blob/master/stable/prometheus-operator/templates/prometheus-operator/crd-servicemonitor.yaml

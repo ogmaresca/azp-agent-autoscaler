@@ -25,6 +25,20 @@ If release name contains chart name it will be used as a full name.
 {{- end -}}
 
 {{/*
+Create the name of the pod security policy to use
+*/}}
+{{- define "azp-agent-autoscaler.psp.name" -}}
+{{- default .Values.rbac.psp.name (printf "%s-%s" .Release.Namespace (include "azp-agent-autoscaler.fullname" .)) | trunc 63 -}}
+{{- end -}}
+
+{{/*
+Create the name of the pod security policy role(binding) to use
+*/}}
+{{- define "azp-agent-autoscaler.psp.rbacname" -}}
+{{- printf "%s-psp" (include "azp-agent-autoscaler.fullname" . | trunc 59) -}}
+{{- end -}}
+
+{{/*
 Create chart name and version as used by the chart label.
 */}}
 {{- define "azp-agent-autoscaler.chart" -}}

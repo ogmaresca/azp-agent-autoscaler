@@ -1,0 +1,22 @@
+agents:
+  name: azp-agent
+
+azp:
+  url: https://dev.azure.com/ExampleProjectName
+  existingSecret: azp-agent
+  existingSecretKey: azp-token
+
+logLevel: Trace
+
+pdb:
+  enabled: true
+
+rbac:
+  psp:
+    enabled: true
+
+serviceMonitor:
+  enabled: true
+
+grafanaDashboard:
+  enabled: true

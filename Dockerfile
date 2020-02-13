@@ -1,16 +1,5 @@
-# Create base stage first to cache commands
-FROM alpine:3.10 AS final_base
-
-EXPOSE 10101
-
-RUN apk update && apk add --no-cache ca-certificates bash
-
-RUN adduser -D -g '' azp-agent-autoscaler
-
 # Download modules
-FROM golang:1.12-alpine3.10 AS base
-
-RUN apk update && apk add --no-cache git ca-certificates tzdata
+FROM golang:1.13-alpine3.11 AS base
 
 WORKDIR /go/src
 
@@ -32,15 +21,17 @@ COPY pkg /go/src/pkg
 RUN go build -ldflags="-w -s" -o /go/bin/azp-agent-autoscaler
 
 # Use alpine as final base stage
-FROM final_base AS final
+FROM alpine:3.11 AS final
 
-COPY --from=build /go/bin/azp-agent-autoscaler /bin/azp-agent-autoscaler
+EXPOSE 10101
 
-RUN chown azp-agent-autoscaler /bin/azp-agent-autoscaler
+RUN adduser -D -g '' -u 1000 azp-agent-autoscaler
 
 USER azp-agent-autoscaler
 
 WORKDIR /home/azp-agent-autoscaler
+
+COPY --from=build --chown=azp-agent-autoscaler /go/bin/azp-agent-autoscaler /bin/azp-agent-autoscaler
 
 ENTRYPOINT ["/bin/azp-agent-autoscaler"]
 CMD []

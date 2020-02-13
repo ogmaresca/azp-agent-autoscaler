@@ -2,8 +2,17 @@ apiVersion: v1
 entries:
   azp-agent-autoscaler:
   - apiVersion: v1
+    appVersion: 1.0.9
+    created: "2020-02-12T20:45:31.938705177-05:00"
+    description: A Helm chart for Azure Pipeline Agents autoscaler
+    digest: c6225c8b142b5e21963376360bd30a994328f0e5d2fc11831d7799be3f4e5402
+    name: azp-agent-autoscaler
+    urls:
+    - azp-agent-autoscaler-1.0.6.tgz
+    version: 1.0.6
+  - apiVersion: v1
     appVersion: 1.0.8
-    created: "2019-08-22T21:36:04.693018638-04:00"
+    created: "2020-02-12T20:45:31.937534363-05:00"
     description: A Helm chart for Azure Pipeline Agents autoscaler
     digest: 4ad737d6a4be11c238920d8a7ab80c9b1f914b676d3d098e219b586eafb1d5a9
     name: azp-agent-autoscaler
@@ -12,7 +21,7 @@ entries:
     version: 1.0.5
   - apiVersion: v1
     appVersion: 1.0.7
-    created: "2019-08-22T21:36:04.692535812-04:00"
+    created: "2020-02-12T20:45:31.936150364-05:00"
     description: A Helm chart for Azure Pipeline Agents autoscaler
     digest: a144c2021825ec309ae90907cd7336444102a301129fa1bcfefddbd1a886bfa2
     name: azp-agent-autoscaler
@@ -21,7 +30,7 @@ entries:
     version: 1.0.4
   - apiVersion: v1
     appVersion: 1.0.6
-    created: "2019-08-22T21:36:04.692222391-04:00"
+    created: "2020-02-12T20:45:31.934566494-05:00"
     description: A Helm chart for Azure Pipeline Agents autoscaler
     digest: 5e146210c69dc9a6a2efd0490a4ff10ea329bd7c7b5d52c197752e47bdf35634
     name: azp-agent-autoscaler
@@ -30,7 +39,7 @@ entries:
     version: 1.0.3
   - apiVersion: v1
     appVersion: 1.0.5
-    created: "2019-08-22T21:36:04.691953472-04:00"
+    created: "2020-02-12T20:45:31.933135838-05:00"
     description: A Helm chart for Azure Pipeline Agents autoscaler
     digest: 79a6cf42c4058872994ce8d35f6a38a0ef0c6be354ca026bd83f28ffcaebe6e0
     name: azp-agent-autoscaler
@@ -39,7 +48,7 @@ entries:
     version: 1.0.2
   - apiVersion: v1
     appVersion: 1.0.4
-    created: "2019-08-22T21:36:04.691684543-04:00"
+    created: "2020-02-12T20:45:31.931662893-05:00"
     description: A Helm chart for Azure Pipeline Agents autoscaler
     digest: 9d96bcb136cf03f4c8a56898a319b02ccbcd2596d2f8de24781b2a95f7820631
     name: azp-agent-autoscaler
@@ -48,11 +57,11 @@ entries:
     version: 1.0.1
   - apiVersion: v1
     appVersion: 1.0.3
-    created: "2019-08-22T21:36:04.691408671-04:00"
+    created: "2020-02-12T20:45:31.929740333-05:00"
     description: A Helm chart for Azure Pipeline Agents autoscaler
     digest: 113c17a628bc449dcbce2fdd043f4377bc148da0895fd186155d2bd889086c0f
     name: azp-agent-autoscaler
     urls:
     - azp-agent-autoscaler-1.0.0.tgz
     version: 1.0.0
-generated: "2019-08-22T21:36:04.691008528-04:00"
+generated: "2020-02-12T20:45:31.928579267-05:00"

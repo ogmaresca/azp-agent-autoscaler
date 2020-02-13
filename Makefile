@@ -26,10 +26,11 @@ helm-lint:
 	helm lint charts/azp-agent-autoscaler
 
 helm-template:
-	helm template charts/azp-agent-autoscaler --set azp.url=https://dev.azure.com/test,azp.token=abc123def456ghi789jkl,agents.name=azp-agent,pdb.enabled=true,serviceMonitor.enabled=true
+	helm template charts/azp-agent-autoscaler --set azp.url=https://dev.azure.com/test,azp.token=abc123def456ghi789jkl,agents.name=azp-agent,pdb.enabled=true,serviceMonitor.enabled=true && \
+	helm template charts/azp-agent-autoscaler --values example-helm-values.yaml
 
 helm-install:
-	helm upgrade --debug --install azp-agent-autoscaler charts/azp-agent-autoscaler --set azp.url=${AZURE_DEVOPS_URL},azp.existingSecret=azp-agent,azp.existingSecretKey=azp-token,agents.name=azp-agent,logLevel=trace
+	helm upgrade --debug --install azp-agent-autoscaler charts/azp-agent-autoscaler --values example-helm-values.yaml --set azp.url=${AZURE_DEVOPS_URL},image.repository=azp-agent-autoscaler,image.tag=dev
 
 helm-package:
 	helm package charts/azp-agent-autoscaler -d charts && \
