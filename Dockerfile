@@ -27,7 +27,7 @@ EXPOSE 10101
 
 RUN adduser -D -g '' -u 1000 azp-agent-autoscaler
 
-USER azp-agent-autoscaler
+USER 1000
 
 WORKDIR /home/azp-agent-autoscaler
 

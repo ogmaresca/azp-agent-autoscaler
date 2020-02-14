@@ -1,4 +1,3 @@
-{{- if .Values.serviceMonitor.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -14,4 +13,3 @@ spec:
     targetPort: metrics
   selector:
     {{- include "azp-agent-autoscaler.selector" . | nindent 4 }}
-{{- end }}

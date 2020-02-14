@@ -35,14 +35,17 @@ spec:
   hostNetwork: {{ .Values.hostNetwork }}
   {{- if .Values.hostNetwork }}
   hostPorts:
-  - min: 10102
-    max: {{ .Values.combinePorts | ternary 10102 10902 }}
+  - min: 10101
+    max: 10101
   {{- end }}
   hostIPC: false
   hostPID: false
   runAsUser:
     # Require the container to run without root privileges.
-    rule: 'MustRunAsNonRoot'
+    rule: 'MustRunAs'
+    ranges:
+    - min: 1000
+      max: 1000
   seLinux:
     # This policy assumes the nodes are using AppArmor rather than SELinux.
     rule: 'RunAsAny'
