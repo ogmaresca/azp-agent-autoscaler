@@ -1,3 +1,9 @@
+# Download trusted root certificates
+FROM alpine:3.11 AS ca-certificates
+
+RUN apk add --no-cache ca-certificates && \
+    update-ca-certificates
+
 # Download modules
 FROM golang:1.13-alpine3.11 AS base
 
@@ -20,18 +26,22 @@ COPY pkg /go/src/pkg
 
 RUN go build -ldflags="-w -s" -o /go/bin/azp-agent-autoscaler
 
-# Use alpine as final base stage
-FROM alpine:3.11 AS final
+# Use a distroless final base
+FROM scratch AS final
 
 EXPOSE 10101
-
-RUN adduser -D -g '' -u 1000 azp-agent-autoscaler
 
 USER 1000
 
 WORKDIR /home/azp-agent-autoscaler
 
-COPY --from=build --chown=azp-agent-autoscaler /go/bin/azp-agent-autoscaler /bin/azp-agent-autoscaler
+ENV HOME /home/azp-agent-autoscaler
+
+COPY --from=build --chown=1000 /go/bin/azp-agent-autoscaler /bin/azp-agent-autoscaler
+
+COPY --from=ca-certificates /usr/share/ca-certificates /usr/share/ca-certificates
+COPY --from=ca-certificates /etc/ca-certificates.conf /etc/ca-certificates.conf
+COPY --from=ca-certificates /etc/ssl/certs /etc/ssl/certs
 
 ENTRYPOINT ["/bin/azp-agent-autoscaler"]
 CMD []
