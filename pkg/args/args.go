@@ -11,7 +11,7 @@ import (
 
 var (
 	logLevel          = flag.String("log-level", "info", "Log level (trace, debug, info, warn, error, fatal, panic).")
-	min               = flag.Int("min", 1, "Minimum number of free agents to keep alive. Minimum of 1.")
+	min               = flag.Int("min", 1, "Minimum number of free agents to keep alive. Minimum of 0.")
 	max               = flag.Int("max", 100, "Maximum number of agents allowed.")
 	rate              = flag.Duration("rate", 10*time.Second, "Duration to check the number of agents.")
 	scaleDownDelay    = flag.Duration("scale-down", 30*time.Second, "Wait time after scaling down to scale down again.")
@@ -109,8 +109,8 @@ func ValidateArgs() error {
 	if err != nil {
 		validationErrors = append(validationErrors, err.Error())
 	}
-	if *min < 1 {
-		validationErrors = append(validationErrors, "Min argument cannot be less than 1.")
+	if *min < 0 {
+		validationErrors = append(validationErrors, "Min argument cannot be less than 0.")
 	}
 	if *max <= *min {
 		validationErrors = append(validationErrors, "Max pods argument must be greater than the minimum.")
