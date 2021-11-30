@@ -1,3 +1,3 @@
 Installs an autoscaler for Azure Pipeline Agents in Kubernetes.
 
-See https://github.com/ggmaresca/azp-agent-autoscaler.
+See https://github.com/ogmaresca/azp-agent-autoscaler.

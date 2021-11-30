@@ -1,8 +1,8 @@
 {{- if .Values.pdb.enabled }}
-apiVersion: policy/v1beta1
+apiVersion: policy/v1{{ if semverCompare "<1.21.0" .Capabilities.KubeVersion.Version }}beta1{{ end }}
 kind: PodDisruptionBudget
 metadata:
-  name: {{ include "azp-agent-autoscaler.fullname" . | quote }}
+  name: {{ include "azp-agent-autoscaler.fullname" . }}{{ if semverCompare "<1.21.0" .Capabilities.KubeVersion.Version }}-v1beta1{{ end }}
   labels:
     {{- include "azp-agent-autoscaler.labels" . | nindent 4 }}
 spec:

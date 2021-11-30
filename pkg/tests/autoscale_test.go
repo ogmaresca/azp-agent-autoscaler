@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/args"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/kubernetes"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/math"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/scaling"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/args"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/kubernetes"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/math"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/scaling"
 )
 
 var (

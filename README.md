@@ -1,6 +1,6 @@
 # Azure Pipeline Agent Autoscaler
 
-azp-agent-autoscaler calls Azure Devops to automatically scale a Kubernetes deployment of an Azure Pipelines agent. [A Helm chart for Azure Pipeline agents can be found here](https://github.com/ggmaresca/azp-agent), which also includes this app.
+azp-agent-autoscaler calls Azure Devops to automatically scale a Kubernetes deployment of an Azure Pipelines agent. [A Helm chart for Azure Pipeline agents can be found here](https://github.com/ogmaresca/azp-agent), which also includes this app.
 
 azp-agent-autoscaler should (in theory) work in Kubernetes versions that have the `apps/v1` API Versions of StatefulSets (Kubernetes 1.9+). It has been tested in Kubernetes versions 1.13-1.15.
 
@@ -9,7 +9,7 @@ azp-agent-autoscaler should (in theory) work in Kubernetes versions that have th
 First, add this repo to Helm:
 
 ``` bash
-helm repo add azp-agent-autoscaler https://raw.githubusercontent.com/ggmaresca/azp-agent-autoscaler/master/charts
+helm repo add azp-agent-autoscaler https://raw.githubusercontent.com/ogmaresca/azp-agent-autoscaler/master/charts
 helm repo update
 ```
 
@@ -104,4 +104,4 @@ The values `azp.token` and `azp.url` are required to install the chart. `azp.tok
 
 ## Docker Hub
 
-[View the Docker Hub page for azp-agent-autoscaler.](https://hub.docker.com/r/gmaresca/azp-agent-autoscaler)
+[View the Docker Hub page for azp-agent-autoscaler.](https://hub.docker.com/r/ogmaresca/azp-agent-autoscaler)

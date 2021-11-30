@@ -6,7 +6,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/logging"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/logging"
 )
 
 var (

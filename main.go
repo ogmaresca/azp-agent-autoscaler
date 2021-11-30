@@ -8,13 +8,13 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/args"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/azuredevops"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/health"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/kubernetes"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/logging"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/math"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/scaling"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/args"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/azuredevops"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/health"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/kubernetes"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/logging"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/math"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/scaling"
 )
 
 const poolNameEnvVar = "AZP_POOL"

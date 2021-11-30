@@ -1,7 +1,7 @@
 package kubernetes
 
 import (
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/args"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/args"
 
 	corev1 "k8s.io/api/core/v1"
 )

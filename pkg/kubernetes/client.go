@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/args"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/args"
 	autoscalingv1 "k8s.io/api/autoscaling/v1"
 	corev1 "k8s.io/api/core/v1"
 	apimachinery "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -3,7 +3,7 @@ package tests
 import (
 	"fmt"
 
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/azuredevops"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/azuredevops"
 )
 
 // PoolDetails creates mock PoolDetails objects

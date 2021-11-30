@@ -1,6 +1,6 @@
-module github.com/ggmaresca/azp-agent-autoscaler
+module github.com/ogmaresca/azp-agent-autoscaler
 
-go 1.13
+go 1.17
 
 // Remove glog, which writes to file
 // https://github.com/istio/istio/blob/master/go.mod

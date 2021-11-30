@@ -10,12 +10,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/args"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/azuredevops"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/collections"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/kubernetes"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/logging"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/math"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/args"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/azuredevops"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/collections"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/kubernetes"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/logging"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/math"
 )
 
 var (

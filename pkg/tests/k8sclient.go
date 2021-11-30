@@ -7,8 +7,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/args"
-	"github.com/ggmaresca/azp-agent-autoscaler/pkg/kubernetes"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/args"
+	"github.com/ogmaresca/azp-agent-autoscaler/pkg/kubernetes"
 )
 
 type mockK8sClient struct {
