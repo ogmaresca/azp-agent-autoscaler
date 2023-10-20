@@ -7,7 +7,7 @@ entries:
     description: A Helm chart for Azure Pipeline Agents autoscaler
     digest: 2a73a8fa6e8c7550f0bb1303feedb23f204373877953912df2077b3cd70bd8e7
     home: https://github.com/ogmaresca/azp-agent-autoscaler
-    kubeVersion: '>= 9.0.0'
+    kubeVersion: '>= 1.9.0'
     maintainers:
     - name: Olivia Godone-Maresca
       url: https://github.com/ogmaresca
